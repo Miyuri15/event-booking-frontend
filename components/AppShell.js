@@ -34,8 +34,8 @@ export default function AppShell({ title, description, children }) {
   };
 
   return (
-    <div className="grid min-h-screen grid-cols-[300px_1fr] max-[900px]:grid-cols-1">
-      <aside className="sticky top-0 grid min-h-screen grid-rows-[auto_1fr_auto] gap-6 bg-[rgba(29,29,27,0.92)] p-6 text-[#f6efe4] max-[900px]:static max-[900px]:min-h-auto">
+    <div className="grid h-screen grid-cols-[300px_1fr] overflow-hidden max-[900px]:h-auto max-[900px]:grid-cols-1 max-[900px]:overflow-visible">
+      <aside className="grid h-screen grid-rows-[auto_1fr_auto] gap-6 overflow-y-auto bg-[rgba(29,29,27,0.92)] p-6 text-[#f6efe4] max-[900px]:h-auto max-[900px]:overflow-visible">
         <div className="brand-block">
           <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[rgba(246,239,228,0.72)]">
             Event Booking
@@ -106,7 +106,7 @@ export default function AppShell({ title, description, children }) {
         </div>
       </aside>
 
-      <div className="p-6 max-[900px]:pt-0">
+      <div className="h-screen overflow-y-auto p-6 max-[900px]:h-auto max-[900px]:overflow-visible max-[900px]:pt-0">
         <header className="mb-6 flex items-start justify-between gap-4 max-[900px]:flex-col">
           <div>
             <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">

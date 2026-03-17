@@ -18,6 +18,8 @@
 
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(192, 90, 43, 0.85) rgba(54, 45, 32, 0.14);
 }
 
 html {
@@ -33,6 +35,28 @@ body {
     radial-gradient(circle at top left, rgba(243, 209, 180, 0.85), transparent 32%),
     radial-gradient(circle at right, rgba(33, 83, 79, 0.18), transparent 30%),
     linear-gradient(160deg, #f7f1e8 0%, #efe5d5 48%, #f7f4ef 100%);
+}
+
+/* Themed scrollbars for both sidebar and content scroll containers. */
+
+*::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(54, 45, 32, 0.12);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(215, 131, 77, 0.95), rgba(192, 90, 43, 0.95));
+  border: 2px solid rgba(54, 45, 32, 0.08);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(192, 90, 43, 1), rgba(138, 53, 21, 0.95));
 }
 
 a {

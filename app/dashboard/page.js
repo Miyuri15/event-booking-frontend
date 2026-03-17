@@ -76,7 +76,7 @@ export default function DashboardPage() {
 
           <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
             <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-              Quick Snapshot
+              Coming Up
             </p>
             <h3 className="mb-3 text-[1.05rem]">
               Your event rhythm this month
