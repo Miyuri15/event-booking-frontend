@@ -77,8 +77,8 @@ export default function AppShell({ title, description, children }) {
   };
 
   return (
-    <div className="workspace-shell">
-      <aside className="sidebar">
+    <div className="grid h-screen grid-cols-[300px_1fr] overflow-hidden max-[900px]:h-auto max-[900px]:grid-cols-1 max-[900px]:overflow-visible">
+      <aside className="grid h-screen grid-rows-[auto_1fr_auto] gap-6 overflow-y-auto bg-[rgba(29,29,27,0.92)] p-6 text-[#f6efe4] max-[900px]:h-auto max-[900px]:overflow-visible">
         <div className="brand-block">
           <p className="eyebrow">Event Booking</p>
           <h1 className="sidebar-title">Luma Events</h1>
@@ -124,8 +124,8 @@ export default function AppShell({ title, description, children }) {
         </div>
       </aside>
 
-      <div className="workspace-main">
-        <header className="workspace-header">
+      <div className="h-screen overflow-y-auto p-6 max-[900px]:h-auto max-[900px]:overflow-visible max-[900px]:pt-0">
+        <header className="mb-6 flex items-start justify-between gap-4 max-[900px]:flex-col">
           <div>
             <p className="eyebrow">Event Booking Platform</p>
             <h2 className="workspace-title">{title}</h2>
