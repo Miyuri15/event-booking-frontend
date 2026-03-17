@@ -83,9 +83,25 @@ export default function AppShell({ title, description, children }) {
             <h2 className="workspace-title">{title}</h2>
             <p className="section-copy workspace-description">{description}</p>
           </div>
-          <div className="header-badge">
-            <span className="badge-dot" />
-            Live product interface
+          <div className="header-actions">
+            <Link
+              aria-label="Open notifications"
+              className={
+                pathname === "/notifications"
+                  ? "notification-icon-button active-notification-icon-button"
+                  : "notification-icon-button"
+              }
+              href="/notifications"
+              title="Notifications"
+            >
+              <span className="notification-bell" aria-hidden="true">
+                0
+              </span>
+            </Link>
+            <div className="header-badge">
+              <span className="badge-dot" />
+              Live product interface
+            </div>
           </div>
         </header>
 
