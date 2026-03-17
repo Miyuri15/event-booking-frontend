@@ -2,7 +2,10 @@
 
 import AppShell from "@/components/AppShell";
 import AuthGuard from "@/components/AuthGuard";
-import { fetchUserNotifications, markNotificationAsRead } from "@/lib/api";
+import {
+  fetchUserNotifications,
+  markNotificationAsRead,
+} from "@/lib/api";
 import { getAuth } from "@/lib/auth";
 import { useEffect, useMemo, useState } from "react";
 
@@ -21,8 +24,7 @@ const fallbackNotifications = [
     type: "PAYMENT_SUCCESS",
     channel: "IN_APP",
     title: "Payment received",
-    message:
-      "Your payment was processed successfully and your ticket is ready.",
+    message: "Your payment was processed successfully and your ticket is ready.",
     status: "READ",
     createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
   },
@@ -55,12 +57,12 @@ export default function NotificationsPage() {
           error: "",
           source: "service",
         });
+        window.dispatchEvent(new Event("notifications:refresh"));
       } catch (error) {
         setNotifications(fallbackNotifications);
         setStatus({
           loading: false,
-          error:
-            "Notification service is not connected yet. Showing preview data.",
+          error: "Notification service is not connected yet. Showing preview data.",
           source: "fallback",
         });
       }
@@ -80,6 +82,7 @@ export default function NotificationsPage() {
         item._id === notificationId ? { ...item, status: "READ" } : item,
       ),
     );
+    window.dispatchEvent(new Event("notifications:refresh"));
 
     if (status.source !== "service" || !auth?.token) {
       return;
@@ -87,6 +90,7 @@ export default function NotificationsPage() {
 
     try {
       await markNotificationAsRead(notificationId, auth.token);
+      window.dispatchEvent(new Event("notifications:refresh"));
     } catch (error) {
       // Keep optimistic UI.
     }
@@ -98,56 +102,40 @@ export default function NotificationsPage() {
         title="Notifications"
         description="Stay on top of booking confirmations, payment updates, reminders, and service alerts in one notification center."
       >
-        <section className="grid grid-cols-2 gap-6 max-[900px]:grid-cols-1">
-          <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
-            <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-              Notification Center
-            </p>
-            <h3 className="mb-3 text-[1.05rem]">
-              Your latest activity updates
-            </h3>
-            <div className="mt-[1.2rem] grid grid-cols-3 gap-[0.85rem] max-[900px]:grid-cols-1">
-              <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                <strong className="mb-1 block text-2xl">
-                  {notifications.length}
-                </strong>
-                <span className="text-[var(--text-muted)]">
-                  Total notifications
-                </span>
+        <section className="workspace-grid">
+          <article className="panel">
+            <p className="eyebrow">Notification Center</p>
+            <h3>Your latest activity updates</h3>
+            <div className="metric-row">
+              <div className="metric-card">
+                <strong>{notifications.length}</strong>
+                <span>Total notifications</span>
               </div>
-              <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                <strong className="mb-1 block text-2xl">{unreadCount}</strong>
-                <span className="text-[var(--text-muted)]">Unread items</span>
+              <div className="metric-card">
+                <strong>{unreadCount}</strong>
+                <span>Unread items</span>
               </div>
-              <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                <strong className="mb-1 block text-2xl">
-                  {status.source === "service" ? "Live" : "Preview"}
-                </strong>
-                <span className="text-[var(--text-muted)]">Data source</span>
+              <div className="metric-card">
+                <strong>{status.source === "service" ? "Live" : "Preview"}</strong>
+                <span>Data source</span>
               </div>
             </div>
-            {status.error ? (
-              <p className="mt-4 rounded-2xl border border-[rgba(182,61,61,0.18)] bg-[rgba(182,61,61,0.08)] px-4 py-[0.9rem] text-[var(--danger)]">
-                {status.error}
-              </p>
-            ) : null}
+            {status.error ? <p className="status error">{status.error}</p> : null}
           </article>
 
-          <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
-            <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-              Preferences
-            </p>
-            <h3 className="mb-3 text-[1.05rem]">Delivery channels</h3>
-            <div className="grid gap-4">
-              <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
+          <article className="panel">
+            <p className="eyebrow">Preferences</p>
+            <h3>Delivery channels</h3>
+            <div className="summary-stack">
+              <div className="summary-card">
                 <span>Email</span>
                 <strong>Booking confirmations enabled</strong>
               </div>
-              <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
+              <div className="summary-card">
                 <span>In-app</span>
                 <strong>Payment and reminder alerts enabled</strong>
               </div>
-              <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
+              <div className="summary-card">
                 <span>SMS</span>
                 <strong>Optional for urgent event changes</strong>
               </div>
@@ -155,48 +143,35 @@ export default function NotificationsPage() {
           </article>
         </section>
 
-        <section className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
-          <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-            Activity Feed
-          </p>
-          <h3 className="mb-3 text-[1.05rem]">Messages for this account</h3>
+        <section className="panel">
+          <p className="eyebrow">Activity Feed</p>
+          <h3>Messages for this account</h3>
           {status.loading ? (
-            <p className="leading-[1.7] text-[var(--text-muted)]">
-              Loading notifications...
-            </p>
+            <p className="section-copy">Loading notifications...</p>
           ) : (
-            <div className="grid gap-4">
+            <div className="notification-list">
               {notifications.map((notification) => (
                 <article
                   className={
                     notification.status === "UNREAD"
-                      ? "grid grid-cols-[1fr_auto] items-start justify-between gap-4 rounded-[22px] border border-[rgba(192,90,43,0.24)] bg-[rgba(255,255,255,0.72)] px-[1.1rem] py-4 shadow-[0_0_0_4px_rgba(192,90,43,0.06)] max-[900px]:grid-cols-1"
-                      : "grid grid-cols-[1fr_auto] items-start justify-between gap-4 rounded-[22px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.72)] px-[1.1rem] py-4 max-[900px]:grid-cols-1"
+                      ? "notification-card unread-notification-card"
+                      : "notification-card"
                   }
                   key={notification._id}
                 >
-                  <div className="grid gap-2">
-                    <span className="mb-[0.9rem] inline-flex w-fit rounded-full bg-[rgba(192,90,43,0.11)] px-3 py-[0.4rem] text-[0.82rem] font-bold text-[var(--accent-dark)]">
-                      {notification.type.replaceAll("_", " ")}
-                    </span>
-                    <h4 className="mb-2 text-[1.15rem]">
-                      {notification.title || notification.type}
-                    </h4>
-                    <p className="mb-0 text-[var(--text-muted)]">
-                      {notification.message}
-                    </p>
-                    <small className="text-[var(--text-muted)]">
-                      {notification.channel} |{" "}
-                      {new Date(notification.createdAt).toLocaleString()}
+                  <div className="notification-copy">
+                    <span className="event-category">{notification.type.replaceAll("_", " ")}</span>
+                    <h4>{notification.title || notification.type}</h4>
+                    <p>{notification.message}</p>
+                    <small>
+                      {notification.channel} | {new Date(notification.createdAt).toLocaleString()}
                     </small>
                   </div>
-                  <div className="grid content-start justify-items-end gap-3 max-[900px]:justify-items-start">
-                    <span className="inline-flex items-center rounded-full bg-[rgba(33,83,79,0.12)] px-[0.8rem] py-[0.45rem] text-[0.82rem] font-bold text-[var(--secondary)]">
-                      {notification.status}
-                    </span>
+                  <div className="notification-actions">
+                    <span className="status-pill">{notification.status}</span>
                     {notification.status === "UNREAD" ? (
                       <button
-                        className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
+                        className="secondary-button"
                         onClick={() => handleMarkRead(notification._id)}
                         type="button"
                       >
