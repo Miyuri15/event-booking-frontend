@@ -249,20 +249,20 @@ export default function AccountPage() {
               <h3 className="mb-3 text-[1.05rem]">Your account at a glance</h3>
               <div className="grid gap-4">
                 <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                  <span>Email</span>
-                  <strong>{profile?.email}</strong>
+                  <div className="notification-summary-head">Email</div>
+                  <strong className="notification-summary-value">{profile?.email}</strong>
                 </div>
                 <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                  <span>Member Since</span>
-                  <strong>
+                  <div className="notification-summary-head">Member Since</div>
+                  <strong className="notification-summary-value">
                     {profile?.createdAt
                       ? new Date(profile.createdAt).toLocaleDateString()
                       : "N/A"}
                   </strong>
                 </div>
                 <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                  <span>Account Status</span>
-                  <strong>Active</strong>
+                  <div className="notification-summary-head">Account Status</div>
+                  <strong className="notification-summary-value">Active</strong>
                 </div>
               </div>
 
