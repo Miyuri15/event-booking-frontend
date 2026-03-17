@@ -21,10 +21,14 @@ export default function AuthGuard({ children }) {
 
   if (!ready) {
     return (
-      <main className="auth-guard-shell">
-        <section className="panel">
-          <p className="eyebrow">Preparing</p>
-          <h2>Loading your event booking experience...</h2>
+      <main className="mx-auto grid min-h-screen w-[min(900px,calc(100%-2rem))] place-items-center">
+        <section className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
+          <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
+            Preparing
+          </p>
+          <h2 className="mb-4 text-[1.7rem]">
+            Loading your event booking experience...
+          </h2>
         </section>
       </main>
     );

@@ -64,7 +64,9 @@ export default function BookingsPage() {
   const [confirmationMessage, setConfirmationMessage] = useState("");
 
   const selectedEvent = useMemo(
-    () => bookableEvents.find((event) => event.id === selectedEventId) || bookableEvents[0],
+    () =>
+      bookableEvents.find((event) => event.id === selectedEventId) ||
+      bookableEvents[0],
     [selectedEventId],
   );
 
@@ -111,68 +113,97 @@ export default function BookingsPage() {
         title="Bookings"
         description="Manage reservations, preview the booking flow, and review the current state of your upcoming event purchases."
       >
-        <section className="workspace-grid">
-          <article className="panel">
-            <p className="eyebrow">Booking Flow</p>
-            <h3>How reservations move through the platform</h3>
-            <div className="timeline-list">
-              {reservationSteps.map((step) => (
-                <div className="timeline-item" key={step}>
-                  <span className="timeline-dot" />
+        <section className="grid grid-cols-2 gap-6 max-[900px]:grid-cols-1">
+          <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
+            <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
+              Booking Flow
+            </p>
+            <h3 className="mb-3 text-[1.05rem]">
+              How reservations move through the platform
+            </h3>
+            <div className="grid gap-4">
+              {reservationSteps.map((label) => (
+                <div
+                  className="flex items-start gap-[0.9rem] rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.65)] p-4"
+                  key={label}
+                >
+                  <span className="mt-[0.45rem] h-3 w-3 shrink-0 rounded-full bg-[var(--accent)]" />
                   <div>
-                    <strong>{step}</strong>
-                    <p>Designed as a smooth, low-friction booking journey.</p>
+                    <strong>{label}</strong>
+                    <p className="mb-0 text-[var(--text-muted)]">
+                      Designed as a smooth, low-friction booking journey.
+                    </p>
                   </div>
                 </div>
               ))}
             </div>
           </article>
 
-          <article className="panel">
-            <p className="eyebrow">Reserve Quickly</p>
-            <h3>Booking summary preview</h3>
-            <div className="summary-stack">
-              <div className="summary-card">
+          <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
+            <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
+              Reserve Quickly
+            </p>
+            <h3 className="mb-3 text-[1.05rem]">Booking summary preview</h3>
+            <div className="grid gap-4">
+              <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
                 <span>Selected Event</span>
                 <strong>{selectedEvent.title}</strong>
               </div>
-              <div className="summary-card">
+              <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
                 <span>Ticket Tier</span>
                 <strong>{selectedEvent.ticketTier}</strong>
               </div>
-              <div className="summary-card">
+              <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
                 <span>Estimated Total</span>
                 <strong>LKR {total.toLocaleString()}</strong>
               </div>
             </div>
             {confirmationMessage ? (
-              <p className="status success">{confirmationMessage}</p>
+              <p className="mt-4 rounded-2xl border border-[rgba(47,125,83,0.18)] bg-[rgba(47,125,83,0.08)] px-4 py-[0.9rem] text-[var(--success)]">
+                {confirmationMessage}
+              </p>
             ) : null}
-            <div className="hero-actions">
-              <button className="primary-button" onClick={openBookingFlow} type="button">
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                className="cursor-pointer rounded-full border-0 bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] px-[1.35rem] py-[0.95rem] text-white shadow-[0_12px_26px_rgba(192,90,43,0.28)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
+                onClick={openBookingFlow}
+                type="button"
+              >
                 Start Booking
               </button>
-              <button className="secondary-button" type="button">
+              <button
+                className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
+                type="button"
+              >
                 View Seat Map
               </button>
             </div>
           </article>
         </section>
 
-        <section className="panel">
-          <p className="eyebrow">My Reservations</p>
-          <h3>Current booking activity</h3>
-          <div className="ticket-list">
+        <section className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
+          <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
+            My Reservations
+          </p>
+          <h3 className="mb-3 text-[1.05rem]">Current booking activity</h3>
+          <div className="grid gap-4">
             {bookings.map((booking) => (
-              <article className="ticket-card" key={booking.title}>
+              <article
+                className="flex items-start gap-[0.9rem] rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.65)] p-4"
+                key={booking.title}
+              >
                 <div>
-                  <h4>{booking.title}</h4>
-                  <p>{booking.venue}</p>
+                  <h4 className="mb-2 text-[1.15rem]">{booking.title}</h4>
+                  <p className="mb-0 text-[var(--text-muted)]">
+                    {booking.venue}
+                  </p>
                 </div>
-                <div className="ticket-meta">
+                <div className="ml-auto flex items-center gap-4">
                   <span>{booking.date}</span>
                   <strong>{booking.tickets} ticket(s)</strong>
-                  <span className="status-pill">{booking.status}</span>
+                  <span className="inline-flex items-center rounded-full bg-[rgba(33,83,79,0.12)] px-[0.8rem] py-[0.45rem] text-[0.82rem] font-bold text-[var(--secondary)]">
+                    {booking.status}
+                  </span>
                 </div>
               </article>
             ))}
@@ -180,27 +211,41 @@ export default function BookingsPage() {
         </section>
 
         {showModal ? (
-          <div className="modal-backdrop" onClick={closeBookingFlow} role="presentation">
+          <div
+            className="fixed inset-0 z-30 grid place-items-center bg-[rgba(17,17,17,0.45)] p-4"
+            onClick={closeBookingFlow}
+            role="presentation"
+          >
             <section
-              className="modal-card"
+              className="max-h-[90vh] w-[min(920px,100%)] overflow-auto rounded-[28px] border border-[rgba(54,45,32,0.1)] bg-[#fffaf4] p-6 shadow-[0_30px_70px_rgba(17,17,17,0.22)]"
               onClick={(event) => event.stopPropagation()}
               role="dialog"
               aria-modal="true"
             >
-              <div className="modal-header">
+              <div className="grid grid-cols-[1fr_auto] items-center gap-4 max-[900px]:grid-cols-1">
                 <div>
-                  <p className="eyebrow">Booking Portal</p>
-                  <h3>Create reservation</h3>
+                  <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
+                    Booking Portal
+                  </p>
+                  <h3 className="mb-3 text-[1.05rem]">Create reservation</h3>
                 </div>
-                <button className="secondary-button" onClick={closeBookingFlow} type="button">
+                <button
+                  className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
+                  onClick={closeBookingFlow}
+                  type="button"
+                >
                   Close
                 </button>
               </div>
 
-              <div className="step-indicator">
+              <div className="my-5 grid grid-cols-2 gap-4 max-[900px]:grid-cols-1">
                 {reservationSteps.map((label, index) => (
                   <div
-                    className={index + 1 <= step ? "step-pill active-step-pill" : "step-pill"}
+                    className={
+                      index + 1 <= step
+                        ? "rounded-2xl border border-[rgba(192,90,43,0.15)] bg-[rgba(192,90,43,0.12)] px-[0.9rem] py-[0.8rem] text-[0.9rem] text-[var(--accent-dark)]"
+                        : "rounded-2xl bg-[rgba(54,45,32,0.06)] px-[0.9rem] py-[0.8rem] text-[0.9rem] text-[var(--text-muted)]"
+                    }
                     key={label}
                   >
                     {index + 1}. {label}
@@ -209,21 +254,25 @@ export default function BookingsPage() {
               </div>
 
               {step === 1 ? (
-                <div className="modal-grid">
+                <div className="grid grid-cols-3 gap-4 max-[900px]:grid-cols-1">
                   {bookableEvents.map((event) => (
                     <button
                       className={
                         event.id === selectedEventId
-                          ? "selection-card active-selection-card"
-                          : "selection-card"
+                          ? "w-full cursor-pointer rounded-[20px] border border-[rgba(192,90,43,0.35)] bg-[rgba(255,255,255,0.82)] p-4 text-left shadow-[0_0_0_4px_rgba(192,90,43,0.08)]"
+                          : "w-full cursor-pointer rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.82)] p-4 text-left"
                       }
                       key={event.id}
                       onClick={() => setSelectedEventId(event.id)}
                       type="button"
                     >
-                      <span className="event-category">{event.ticketTier}</span>
-                      <h4>{event.title}</h4>
-                      <p>{event.venue}</p>
+                      <span className="mb-[0.9rem] inline-flex w-fit rounded-full bg-[rgba(192,90,43,0.11)] px-3 py-[0.4rem] text-[0.82rem] font-bold text-[var(--accent-dark)]">
+                        {event.ticketTier}
+                      </span>
+                      <h4 className="mb-2 text-[1.15rem]">{event.title}</h4>
+                      <p className="mb-0 text-[var(--text-muted)]">
+                        {event.venue}
+                      </p>
                       <strong>{event.date}</strong>
                     </button>
                   ))}
@@ -231,10 +280,11 @@ export default function BookingsPage() {
               ) : null}
 
               {step === 2 ? (
-                <div className="modal-form">
-                  <label>
-                    Number of Tickets
+                <div className="grid gap-4">
+                  <label className="grid gap-2 text-[0.95rem] text-[var(--text-main)]">
+                    <span>Number of Tickets</span>
                     <input
+                      className="w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none focus:border-[rgba(192,90,43,0.45)] focus:shadow-[0_0_0_4px_rgba(192,90,43,0.12)]"
                       max="6"
                       min="1"
                       onChange={(event) =>
@@ -245,12 +295,14 @@ export default function BookingsPage() {
                     />
                   </label>
 
-                  <div className="summary-stack">
-                    <div className="summary-card">
+                  <div className="grid gap-4">
+                    <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
                       <span>Ticket Price</span>
-                      <strong>LKR {selectedEvent.price.toLocaleString()}</strong>
+                      <strong>
+                        LKR {selectedEvent.price.toLocaleString()}
+                      </strong>
                     </div>
-                    <div className="summary-card">
+                    <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
                       <span>Seats</span>
                       <strong>{ticketCount}</strong>
                     </div>
@@ -259,16 +311,16 @@ export default function BookingsPage() {
               ) : null}
 
               {step === 3 ? (
-                <div className="summary-stack">
-                  <div className="summary-card">
+                <div className="grid gap-4">
+                  <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
                     <span>Event</span>
                     <strong>{selectedEvent.title}</strong>
                   </div>
-                  <div className="summary-card">
+                  <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
                     <span>Venue</span>
                     <strong>{selectedEvent.venue}</strong>
                   </div>
-                  <div className="summary-card">
+                  <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
                     <span>Total Due</span>
                     <strong>LKR {total.toLocaleString()}</strong>
                   </div>
@@ -276,25 +328,25 @@ export default function BookingsPage() {
               ) : null}
 
               {step === 4 ? (
-                <div className="summary-stack">
-                  <div className="summary-card">
+                <div className="grid gap-4">
+                  <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
                     <span>Ready For Payment</span>
                     <strong>{selectedEvent.title}</strong>
                   </div>
-                  <div className="summary-card">
+                  <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
                     <span>Amount</span>
                     <strong>LKR {total.toLocaleString()}</strong>
                   </div>
-                  <div className="summary-card">
+                  <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
                     <span>Status</span>
                     <strong>Reservation locked for checkout</strong>
                   </div>
                 </div>
               ) : null}
 
-              <div className="modal-actions">
+              <div className="mt-4 grid grid-cols-[1fr_auto] items-center gap-4 max-[900px]:grid-cols-1">
                 <button
-                  className="secondary-button"
+                  className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
                   disabled={step === 1}
                   onClick={previousStep}
                   type="button"
@@ -302,11 +354,19 @@ export default function BookingsPage() {
                   Back
                 </button>
                 {step < 4 ? (
-                  <button className="primary-button" onClick={nextStep} type="button">
+                  <button
+                    className="cursor-pointer rounded-full border-0 bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] px-[1.35rem] py-[0.95rem] text-white shadow-[0_12px_26px_rgba(192,90,43,0.28)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
+                    onClick={nextStep}
+                    type="button"
+                  >
                     Continue
                   </button>
                 ) : (
-                  <button className="primary-button" onClick={confirmBooking} type="button">
+                  <button
+                    className="cursor-pointer rounded-full border-0 bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] px-[1.35rem] py-[0.95rem] text-white shadow-[0_12px_26px_rgba(192,90,43,0.28)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
+                    onClick={confirmBooking}
+                    type="button"
+                  >
                     Confirm Booking
                   </button>
                 )}

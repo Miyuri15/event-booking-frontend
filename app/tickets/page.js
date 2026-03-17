@@ -38,18 +38,27 @@ export default function TicketsPage() {
         title="My Tickets"
         description="A clean ticket hub for upcoming reservations, past experiences, and quick re-entry into your event history."
       >
-        <section className="workspace-grid">
-          <article className="panel">
-            <p className="eyebrow">Upcoming</p>
-            <h3>Events you are set to attend</h3>
-            <div className="ticket-list">
+        <section className="grid grid-cols-2 gap-6 max-[900px]:grid-cols-1">
+          <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
+            <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
+              Upcoming
+            </p>
+            <h3 className="mb-3 text-[1.05rem]">
+              Events you are set to attend
+            </h3>
+            <div className="grid gap-4">
               {upcomingTickets.map((ticket) => (
-                <article className="ticket-card" key={ticket.title}>
+                <article
+                  className="flex items-start gap-[0.9rem] rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.65)] p-4"
+                  key={ticket.title}
+                >
                   <div>
-                    <h4>{ticket.title}</h4>
-                    <p>{ticket.venue}</p>
+                    <h4 className="mb-2 text-[1.15rem]">{ticket.title}</h4>
+                    <p className="mb-0 text-[var(--text-muted)]">
+                      {ticket.venue}
+                    </p>
                   </div>
-                  <div className="ticket-meta">
+                  <div className="ml-auto flex items-center gap-4">
                     <span>{ticket.when}</span>
                     <strong>{ticket.seat}</strong>
                   </div>
@@ -58,17 +67,26 @@ export default function TicketsPage() {
             </div>
           </article>
 
-          <article className="panel">
-            <p className="eyebrow">Past Events</p>
-            <h3>Moments you already checked in to</h3>
-            <div className="ticket-list">
+          <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
+            <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
+              Past Events
+            </p>
+            <h3 className="mb-3 text-[1.05rem]">
+              Moments you already checked in to
+            </h3>
+            <div className="grid gap-4">
               {pastTickets.map((ticket) => (
-                <article className="ticket-card subtle-ticket-card" key={ticket.title}>
+                <article
+                  className="flex items-start gap-[0.9rem] rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.65)] p-4 opacity-[0.88]"
+                  key={ticket.title}
+                >
                   <div>
-                    <h4>{ticket.title}</h4>
-                    <p>{ticket.venue}</p>
+                    <h4 className="mb-2 text-[1.15rem]">{ticket.title}</h4>
+                    <p className="mb-0 text-[var(--text-muted)]">
+                      {ticket.venue}
+                    </p>
                   </div>
-                  <div className="ticket-meta">
+                  <div className="ml-auto flex items-center gap-4">
                     <span>{ticket.when}</span>
                     <strong>Completed</strong>
                   </div>
