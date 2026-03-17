@@ -22,6 +22,7 @@ export default function AppShell({ title, description, children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [auth, setAuth] = useState(null);
+  const notificationCount = 1;
 
   useEffect(() => {
     setAuth(getAuth());
@@ -118,21 +119,35 @@ export default function AppShell({ title, description, children }) {
           </div>
           <div className="flex items-center gap-3">
             <Link
-              aria-label="Open notifications"
+              aria-label={`Open notifications (${notificationCount} unread)`}
               className={
                 pathname === "/notifications"
-                  ? "inline-flex items-center rounded-full border border-[rgba(192,90,43,0.28)] bg-[rgba(255,255,255,0.8)] px-4 py-[0.8rem] text-[var(--accent-dark)] shadow-[0_0_0_4px_rgba(192,90,43,0.08)]"
-                  : "inline-flex items-center rounded-full border border-[rgba(54,45,32,0.1)] bg-[rgba(255,255,255,0.72)] px-4 py-[0.8rem] text-[var(--accent-dark)]"
+                  ? "relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-[rgba(192,90,43,0.28)] bg-[rgba(255,255,255,0.8)] text-[var(--accent-dark)] shadow-[0_0_0_4px_rgba(192,90,43,0.08)]"
+                  : "relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-[rgba(54,45,32,0.1)] bg-[rgba(255,255,255,0.72)] text-[var(--accent-dark)]"
               }
               href="/notifications"
               title="Notifications"
             >
-              Notifications
+              <svg
+                aria-hidden="true"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M15 17h5l-1.405-1.405A2.03 2.03 0 0 1 18 14.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.8"
+                />
+              </svg>
+              {notificationCount > 0 ? (
+                <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[10px] font-bold leading-none text-white">
+                  {notificationCount > 99 ? "99+" : notificationCount}
+                </span>
+              ) : null}
             </Link>
-            <div className="inline-flex whitespace-nowrap rounded-full border border-[rgba(54,45,32,0.1)] bg-[rgba(255,255,255,0.62)] px-4 py-[0.8rem] text-[var(--secondary)]">
-              <span className="mr-[0.55rem] inline-block h-[10px] w-[10px] rounded-full bg-[var(--secondary)]" />
-              <span>Live product interface</span>
-            </div>
           </div>
         </header>
 
