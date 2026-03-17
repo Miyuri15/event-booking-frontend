@@ -116,9 +116,23 @@ export default function AppShell({ title, description, children }) {
               {description}
             </p>
           </div>
-          <div className="inline-flex whitespace-nowrap rounded-full border border-[rgba(54,45,32,0.1)] bg-[rgba(255,255,255,0.62)] px-4 py-[0.8rem] text-[var(--secondary)]">
-            <span className="mr-[0.55rem] inline-block h-[10px] w-[10px] rounded-full bg-[var(--secondary)]" />
-            <span>Live product interface</span>
+          <div className="flex items-center gap-3">
+            <Link
+              aria-label="Open notifications"
+              className={
+                pathname === "/notifications"
+                  ? "inline-flex items-center rounded-full border border-[rgba(192,90,43,0.28)] bg-[rgba(255,255,255,0.8)] px-4 py-[0.8rem] text-[var(--accent-dark)] shadow-[0_0_0_4px_rgba(192,90,43,0.08)]"
+                  : "inline-flex items-center rounded-full border border-[rgba(54,45,32,0.1)] bg-[rgba(255,255,255,0.72)] px-4 py-[0.8rem] text-[var(--accent-dark)]"
+              }
+              href="/notifications"
+              title="Notifications"
+            >
+              Notifications
+            </Link>
+            <div className="inline-flex whitespace-nowrap rounded-full border border-[rgba(54,45,32,0.1)] bg-[rgba(255,255,255,0.62)] px-4 py-[0.8rem] text-[var(--secondary)]">
+              <span className="mr-[0.55rem] inline-block h-[10px] w-[10px] rounded-full bg-[var(--secondary)]" />
+              <span>Live product interface</span>
+            </div>
           </div>
         </header>
 
