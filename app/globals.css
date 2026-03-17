@@ -642,6 +642,16 @@ input:focus {
   border: 1px solid rgba(54, 45, 32, 0.08);
 }
 
+.notification-summary-head {
+  margin-bottom: 0.35rem;
+  color: var(--text-muted);
+}
+
+.notification-summary-value {
+  display: block;
+  line-height: 1.45;
+}
+
 .summary-card-button,
 .selection-card {
   width: 100%;
@@ -968,3 +978,4 @@ input:focus {
     width: 100%;
   }
 }
+

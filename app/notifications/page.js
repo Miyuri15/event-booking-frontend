@@ -30,6 +30,10 @@ const fallbackNotifications = [
   },
 ];
 
+function formatTypeLabel(type) {
+  return type.replaceAll("_", " ");
+}
+
 export default function NotificationsPage() {
   const [auth, setAuth] = useState(null);
   const [notifications, setNotifications] = useState([]);
@@ -76,6 +80,18 @@ export default function NotificationsPage() {
     [notifications],
   );
 
+  const readCount = useMemo(
+    () => notifications.filter((item) => item.status === "READ").length,
+    [notifications],
+  );
+
+  const inAppCount = useMemo(
+    () => notifications.filter((item) => item.channel === "IN_APP").length,
+    [notifications],
+  );
+
+  const latestNotification = notifications[0] || null;
+
   const handleMarkRead = async (notificationId) => {
     setNotifications((current) =>
       current.map((item) =>
@@ -100,7 +116,7 @@ export default function NotificationsPage() {
     <AuthGuard>
       <AppShell
         title="Notifications"
-        description="Stay on top of booking confirmations, payment updates, reminders, and service alerts in one notification center."
+        description="Track account activity, profile changes, and future booking updates from one place."
       >
         <section className="workspace-grid">
           <article className="panel">
@@ -116,28 +132,58 @@ export default function NotificationsPage() {
                 <span>Unread items</span>
               </div>
               <div className="metric-card">
-                <strong>{status.source === "service" ? "Live" : "Preview"}</strong>
-                <span>Data source</span>
+                <strong>{readCount}</strong>
+                <span>Read items</span>
               </div>
             </div>
             {status.error ? <p className="status error">{status.error}</p> : null}
+            <div className="summary-stack" style={{ marginTop: "1rem" }}>
+              <div className="summary-card">
+                <div className="notification-summary-head">Current delivery</div>
+                <strong className="notification-summary-value">
+                  {status.source === "service" ? "Live in-app feed" : "Preview mode"}
+                </strong>
+              </div>
+              <div className="summary-card">
+                <div className="notification-summary-head">Most recent activity</div>
+                <strong className="notification-summary-value">
+                  {latestNotification
+                    ? formatTypeLabel(latestNotification.type)
+                    : "No notifications yet"}
+                </strong>
+              </div>
+            </div>
           </article>
 
           <article className="panel">
-            <p className="eyebrow">Preferences</p>
-            <h3>Delivery channels</h3>
+            <p className="eyebrow">Current Setup</p>
+            <h3>What this account supports right now</h3>
             <div className="summary-stack">
               <div className="summary-card">
-                <span>Email</span>
-                <strong>Booking confirmations enabled</strong>
+                <div className="notification-summary-head">In-app delivery</div>
+                <strong className="notification-summary-value">
+                  {inAppCount > 0
+                    ? "Active and visible inside the portal"
+                    : "Enabled for account activity"}
+                </strong>
               </div>
               <div className="summary-card">
-                <span>In-app</span>
-                <strong>Payment and reminder alerts enabled</strong>
+                <div className="notification-summary-head">Read status sync</div>
+                <strong className="notification-summary-value">
+                  Unread count updates when you mark items as read
+                </strong>
               </div>
               <div className="summary-card">
-                <span>SMS</span>
-                <strong>Optional for urgent event changes</strong>
+                <div className="notification-summary-head">Connected sources</div>
+                <strong className="notification-summary-value">
+                  User account events are linked. Booking and payment alerts come later.
+                </strong>
+              </div>
+              <div className="summary-card">
+                <div className="notification-summary-head">Channels not enabled</div>
+                <strong className="notification-summary-value">
+                  Email and SMS delivery are not configured in this build yet
+                </strong>
               </div>
             </div>
           </article>
@@ -146,8 +192,31 @@ export default function NotificationsPage() {
         <section className="panel">
           <p className="eyebrow">Activity Feed</p>
           <h3>Messages for this account</h3>
+          <div className="metric-row" style={{ marginBottom: "1rem" }}>
+            <div className="metric-card">
+              <strong>{status.source === "service" ? "Live" : "Preview"}</strong>
+              <span>Service state</span>
+            </div>
+            <div className="metric-card">
+              <strong>{inAppCount}</strong>
+              <span>In-app alerts</span>
+            </div>
+            <div className="metric-card">
+              <strong>
+                {latestNotification
+                  ? new Date(latestNotification.createdAt).toLocaleDateString()
+                  : "-"}
+              </strong>
+              <span>Latest update</span>
+            </div>
+          </div>
           {status.loading ? (
             <p className="section-copy">Loading notifications...</p>
+          ) : notifications.length === 0 ? (
+            <div className="summary-card">
+              <span>Quiet for now</span>
+              <strong>New account activity will appear here as notifications are created.</strong>
+            </div>
           ) : (
             <div className="notification-list">
               {notifications.map((notification) => (
@@ -160,7 +229,7 @@ export default function NotificationsPage() {
                   key={notification._id}
                 >
                   <div className="notification-copy">
-                    <span className="event-category">{notification.type.replaceAll("_", " ")}</span>
+                    <span className="event-category">{formatTypeLabel(notification.type)}</span>
                     <h4>{notification.title || notification.type}</h4>
                     <p>{notification.message}</p>
                     <small>
