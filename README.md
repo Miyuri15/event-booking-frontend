@@ -55,7 +55,7 @@ frontend/
 The frontend is configured to connect to the backend user-service with:
 
 ```env
-NEXT_PUBLIC_USER_SERVICE_URL=http://localhost:8080
+NEXT_BACKEND_URL=http://localhost:8080
 ```
 
 ## Run
