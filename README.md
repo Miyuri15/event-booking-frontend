@@ -10,6 +10,7 @@ This is the Next.js frontend for a product-style Event Booking web application. 
 - `/explore` event discovery page
 - `/bookings` booking portal
 - `/payments` payment portal
+- `/notifications` notification center
 - `/tickets` ticket hub
 - `/account` account settings page
 
@@ -30,6 +31,8 @@ frontend/
 |   |   `-- page.js
 |   |-- payments/
 |   |   `-- page.js
+|   |-- notifications/
+|   |   `-- page.js
 |   |-- tickets/
 |   |   `-- page.js
 |   |-- globals.css
@@ -37,6 +40,7 @@ frontend/
 |   `-- page.js
 |-- components/
 |   |-- AppShell.js
+|   |-- ConfirmationModal.js
 |   `-- AuthGuard.js
 |-- lib/
 |   |-- api.js
@@ -71,4 +75,5 @@ Open `http://localhost:3000`.
 
 - Authentication state is stored in `localStorage`.
 - Register, login, fetch profile, update profile, and delete account are connected to the backend user-service.
+- Notifications page is ready to connect to the notification-service and falls back to preview data if the service is not running yet.
 - Dashboard, explore, bookings, payments, and tickets are built as product-style pages and are ready to connect to future event, booking, and payment APIs.

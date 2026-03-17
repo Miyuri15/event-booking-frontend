@@ -2,6 +2,7 @@
 
 import AppShell from "@/components/AppShell";
 import AuthGuard from "@/components/AuthGuard";
+import ConfirmationModal from "@/components/ConfirmationModal";
 import { clearAuth, getAuth } from "@/lib/auth";
 import {
   deleteUserProfile,
@@ -27,6 +28,7 @@ export default function AccountPage() {
     error: "",
     success: "",
   });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     setAuth(getAuth());
@@ -124,14 +126,6 @@ export default function AccountPage() {
       return;
     }
 
-    const confirmed = window.confirm(
-      "Delete this account permanently? This cannot be undone.",
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
     setStatus((current) => ({
       ...current,
       deleting: true,
@@ -141,6 +135,7 @@ export default function AccountPage() {
 
     try {
       await deleteUserProfile(profile._id, auth.token);
+      setShowDeleteModal(false);
       clearAuth();
       router.push("/auth");
     } catch (error) {
@@ -248,7 +243,7 @@ export default function AccountPage() {
                 <button
                   className="danger-button"
                   disabled={status.deleting}
-                  onClick={handleDelete}
+                  onClick={() => setShowDeleteModal(true)}
                   type="button"
                 >
                   {status.deleting ? "Deleting..." : "Delete Account"}
@@ -257,6 +252,17 @@ export default function AccountPage() {
             </article>
           </section>
         )}
+        <ConfirmationModal
+          cancelLabel="Keep Account"
+          confirmLabel="Delete Account"
+          description="This will permanently remove this profile from the platform. You will need to register again to use this account."
+          isDanger
+          isLoading={status.deleting}
+          isOpen={showDeleteModal}
+          onCancel={() => setShowDeleteModal(false)}
+          onConfirm={handleDelete}
+          title="Delete your account?"
+        />
       </AppShell>
     </AuthGuard>
   );

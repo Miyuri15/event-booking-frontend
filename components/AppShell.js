@@ -10,6 +10,7 @@ const navigationItems = [
   { href: "/explore", label: "Explore", caption: "Find events" },
   { href: "/bookings", label: "Bookings", caption: "Reservations" },
   { href: "/payments", label: "Payments", caption: "Wallet and checkout" },
+  { href: "/notifications", label: "Notifications", caption: "Alerts and updates" },
   { href: "/account", label: "Account", caption: "Profile settings" },
 ];
 

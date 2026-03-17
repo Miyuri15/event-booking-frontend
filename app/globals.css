@@ -665,6 +665,10 @@ input:focus {
   box-shadow: 0 30px 70px rgba(17, 17, 17, 0.22);
 }
 
+.modal-card-compact {
+  width: min(560px, 100%);
+}
+
 .modal-header,
 .modal-actions,
 .step-indicator,
@@ -677,6 +681,11 @@ input:focus {
 .modal-actions {
   grid-template-columns: 1fr auto;
   align-items: center;
+}
+
+.modal-actions-inline {
+  grid-template-columns: repeat(2, auto);
+  justify-content: end;
 }
 
 .step-indicator {
@@ -730,6 +739,42 @@ input:focus {
   font-weight: 700;
 }
 
+.notification-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.notification-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(54, 45, 32, 0.08);
+}
+
+.unread-notification-card {
+  border-color: rgba(192, 90, 43, 0.24);
+  box-shadow: 0 0 0 4px rgba(192, 90, 43, 0.06);
+}
+
+.notification-copy {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.notification-copy small {
+  color: var(--text-muted);
+}
+
+.notification-actions {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  justify-items: end;
+}
+
 .danger-zone {
   margin-top: 1.5rem;
   padding-top: 1.25rem;
@@ -760,8 +805,17 @@ input:focus {
   .modal-grid,
   .step-indicator,
   .modal-header,
-  .modal-actions {
+  .modal-actions,
+  .notification-card {
     grid-template-columns: 1fr;
+  }
+
+  .notification-card {
+    display: grid;
+  }
+
+  .notification-actions {
+    justify-items: start;
   }
 
   .workspace-header {
