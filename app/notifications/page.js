@@ -12,31 +12,90 @@ import { useEffect, useMemo, useState } from "react";
 const fallbackNotifications = [
   {
     _id: "demo-1",
-    type: "BOOKING_CONFIRMATION",
-    channel: "EMAIL",
-    title: "Booking confirmed",
-    message: "Your reservation for Neon Harbor Music Night has been confirmed.",
+    type: "BOOKING_PENDING",
+    channel: "IN_APP",
+    title: "Booking created",
+    message: "Your booking has been created with pending status for Neon Harbor Music Night.",
     status: "UNREAD",
     createdAt: new Date().toISOString(),
+    metadata: {
+      source: "BOOKING_SERVICE",
+      eventTitle: "Neon Harbor Music Night",
+      bookingId: "BK-1001",
+    },
   },
   {
     _id: "demo-2",
-    type: "PAYMENT_SUCCESS",
+    type: "PAYMENT_RECEIVED",
     channel: "IN_APP",
     title: "Payment received",
-    message: "Your payment was processed successfully and your ticket is ready.",
+    message: "Payment was received successfully for LKR 4500.",
     status: "READ",
     createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+    metadata: {
+      source: "PAYMENT_SERVICE",
+      paymentId: "PAY-2044",
+      amount: 4500,
+      currency: "LKR",
+    },
+  },
+  {
+    _id: "demo-3",
+    type: "EVENT_UPDATED",
+    channel: "IN_APP",
+    title: "Event updated",
+    message: "The event \"Moonlight Rooftop Session\" was updated successfully.",
+    status: "UNREAD",
+    createdAt: new Date(Date.now() - 1000 * 60 * 110).toISOString(),
+    metadata: {
+      source: "EVENT_SERVICE",
+      eventTitle: "Moonlight Rooftop Session",
+      entityId: "EV-311",
+    },
   },
 ];
+
+const PREVIEW_NOTIFICATION_COUNT = 3;
 
 function formatTypeLabel(type) {
   return type.replaceAll("_", " ");
 }
 
+function formatSourceLabel(source) {
+  if (!source) {
+    return "Manual";
+  }
+
+  return source.replaceAll("_", " ");
+}
+
+function buildMetaSummary(notification) {
+  const metadata = notification.metadata || {};
+  const parts = [];
+
+  if (metadata.eventTitle) {
+    parts.push(metadata.eventTitle);
+  }
+
+  if (metadata.bookingId) {
+    parts.push(`Booking ${metadata.bookingId}`);
+  }
+
+  if (metadata.paymentId) {
+    parts.push(`Payment ${metadata.paymentId}`);
+  }
+
+  if (metadata.entityId && !metadata.bookingId && !metadata.paymentId) {
+    parts.push(`Reference ${metadata.entityId}`);
+  }
+
+  return parts.join(" | ");
+}
+
 export default function NotificationsPage() {
   const [auth, setAuth] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [showAllNotifications, setShowAllNotifications] = useState(false);
   const [status, setStatus] = useState({
     loading: true,
     error: "",
@@ -66,7 +125,7 @@ export default function NotificationsPage() {
         setNotifications(fallbackNotifications);
         setStatus({
           loading: false,
-          error: "Notification service is not connected yet. Showing preview data.",
+          error: "Live notifications are not fully connected yet. Showing contract preview data.",
           source: "fallback",
         });
       }
@@ -74,6 +133,10 @@ export default function NotificationsPage() {
 
     loadNotifications();
   }, [auth]);
+
+  useEffect(() => {
+    setShowAllNotifications(false);
+  }, [notifications.length]);
 
   const unreadCount = useMemo(
     () => notifications.filter((item) => item.status === "UNREAD").length,
@@ -91,6 +154,9 @@ export default function NotificationsPage() {
   );
 
   const latestNotification = notifications[0] || null;
+  const displayedNotifications = showAllNotifications
+    ? notifications
+    : notifications.slice(0, PREVIEW_NOTIFICATION_COUNT);
 
   useEffect(() => {
     window.dispatchEvent(
@@ -132,7 +198,7 @@ export default function NotificationsPage() {
     <AuthGuard>
       <AppShell
         title="Notifications"
-        description="Track account activity, profile changes, and future booking updates from one place."
+        description="Track booking, payment, account, and admin event updates from one place."
       >
         <section className="workspace-grid">
           <article className="panel">
@@ -190,9 +256,9 @@ export default function NotificationsPage() {
                 </strong>
               </div>
               <div className="summary-card">
-                <div className="notification-summary-head">Connected sources</div>
+                <div className="notification-summary-head">Connected contracts</div>
                 <strong className="notification-summary-value">
-                  User account events are linked. Booking and payment alerts come later.
+                  Booking, payment, user, and admin event notification types are supported
                 </strong>
               </div>
               <div className="summary-card">
@@ -206,8 +272,21 @@ export default function NotificationsPage() {
         </section>
 
         <section className="panel">
-          <p className="eyebrow">Activity Feed</p>
-          <h3>Messages for this account</h3>
+          <div className="flex items-start justify-between gap-4 max-[700px]:flex-col max-[700px]:items-stretch">
+            <div>
+              <p className="eyebrow">Activity Feed</p>
+              <h3>Messages for this account</h3>
+            </div>
+            {notifications.length > PREVIEW_NOTIFICATION_COUNT ? (
+              <button
+                className="secondary-button"
+                onClick={() => setShowAllNotifications((current) => !current)}
+                type="button"
+              >
+                {showAllNotifications ? "Show latest 3" : "See all notifications"}
+              </button>
+            ) : null}
+          </div>
           <div className="metric-row" style={{ marginBottom: "1rem" }}>
             <div className="metric-card">
               <strong>{status.source === "service" ? "Live" : "Preview"}</strong>
@@ -226,6 +305,13 @@ export default function NotificationsPage() {
               <span>Latest update</span>
             </div>
           </div>
+          {!status.loading && notifications.length > PREVIEW_NOTIFICATION_COUNT ? (
+            <p className="section-copy" style={{ marginBottom: "1rem" }}>
+              {showAllNotifications
+                ? `Showing all ${notifications.length} notifications.`
+                : `Showing the latest ${PREVIEW_NOTIFICATION_COUNT} notifications.`}
+            </p>
+          ) : null}
           {status.loading ? (
             <p className="section-copy">Loading notifications...</p>
           ) : notifications.length === 0 ? (
@@ -235,37 +321,42 @@ export default function NotificationsPage() {
             </div>
           ) : (
             <div className="notification-list">
-              {notifications.map((notification) => (
-                <article
-                  className={
-                    notification.status === "UNREAD"
-                      ? "notification-card unread-notification-card"
-                      : "notification-card"
-                  }
-                  key={notification._id}
-                >
-                  <div className="notification-copy">
-                    <span className="event-category">{formatTypeLabel(notification.type)}</span>
-                    <h4>{notification.title || notification.type}</h4>
-                    <p>{notification.message}</p>
-                    <small>
-                      {notification.channel} | {new Date(notification.createdAt).toLocaleString()}
-                    </small>
-                  </div>
-                  <div className="notification-actions">
-                    <span className="status-pill">{notification.status}</span>
-                    {notification.status === "UNREAD" ? (
-                      <button
-                        className="secondary-button"
-                        onClick={() => handleMarkRead(notification._id)}
-                        type="button"
-                      >
-                        Mark as Read
-                      </button>
-                    ) : null}
-                  </div>
-                </article>
-              ))}
+              {displayedNotifications.map((notification) => {
+                const metaSummary = buildMetaSummary(notification);
+
+                return (
+                  <article
+                    className={
+                      notification.status === "UNREAD"
+                        ? "notification-card unread-notification-card"
+                        : "notification-card"
+                    }
+                    key={notification._id}
+                  >
+                    <div className="notification-copy">
+                      <span className="event-category">{formatTypeLabel(notification.type)}</span>
+                      <h4>{notification.title || notification.type}</h4>
+                      <p>{notification.message}</p>
+                      {metaSummary ? <small>{metaSummary}</small> : null}
+                      <small>
+                        {formatSourceLabel(notification.metadata?.source)} | {notification.channel} | {new Date(notification.createdAt).toLocaleString()}
+                      </small>
+                    </div>
+                    <div className="notification-actions">
+                      <span className="status-pill">{notification.status}</span>
+                      {notification.status === "UNREAD" ? (
+                        <button
+                          className="secondary-button"
+                          onClick={() => handleMarkRead(notification._id)}
+                          type="button"
+                        >
+                          Mark as Read
+                        </button>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>
