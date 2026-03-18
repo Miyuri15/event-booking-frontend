@@ -123,7 +123,8 @@ export default function AuthPage() {
 
     try {
       const data = await loginUser(loginForm);
-
+      setShowLoginPassword(false);
+      saveAuth(data);
       setLoginForm(initialLoginState);
       router.push(data?.user?.role === "ADMIN" ? "/explore" : "/dashboard");
     } catch (error) {
