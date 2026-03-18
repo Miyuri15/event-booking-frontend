@@ -258,34 +258,38 @@ export default function ExplorePage() {
     setAuth(getAuth());
   }, []);
 
+  const loadEvents = async (token) => {
+    try {
+      const data = await fetchUserEvents(token);
+      const nextEvents =
+        Array.isArray(data) && data.length ? data : fallbackEvents;
+      setEvents(nextEvents);
+      setSelectedEvent(nextEvents[0] || null);
+      setStatus({
+        loading: false,
+        error:
+          Array.isArray(data) && data.length
+            ? ""
+            : "Event service returned no records yet. Showing preview events.",
+        source: Array.isArray(data) && data.length ? "service" : "fallback",
+      });
+    } catch (error) {
+      setEvents(fallbackEvents);
+      setSelectedEvent(fallbackEvents[0]);
+      setStatus({
+        loading: false,
+        error: "Live event data is unavailable right now. Showing preview events.",
+        source: "fallback",
+      });
+    }
+  };
+
   useEffect(() => {
     if (!auth?.token) {
       return;
     }
 
-    const loadEvents = async () => {
-      try {
-        const data = await fetchUserEvents(auth.token);
-        const nextEvents = Array.isArray(data) && data.length ? data : fallbackEvents;
-        setEvents(nextEvents);
-        setSelectedEvent(nextEvents[0] || null);
-        setStatus({
-          loading: false,
-          error: Array.isArray(data) && data.length ? "" : "Event service returned no records yet. Showing preview events.",
-          source: Array.isArray(data) && data.length ? "service" : "fallback",
-        });
-      } catch (error) {
-        setEvents(fallbackEvents);
-        setSelectedEvent(fallbackEvents[0]);
-        setStatus({
-          loading: false,
-          error: "Live event data is unavailable right now. Showing preview events.",
-          source: "fallback",
-        });
-      }
-    };
-
-    loadEvents();
+    loadEvents(auth.token);
   }, [auth]);
 
   const adminMode = useMemo(() => isAdmin(auth), [auth]);
@@ -301,13 +305,10 @@ export default function ExplorePage() {
       ...createForm,
       totalSeats: Number(createForm.totalSeats),
       ticketPrice: Number(createForm.ticketPrice),
-      createdBy: auth?.user?.id,
     };
 
     try {
       const createdEvent = await createEvent(payload, auth.token);
-      setEvents((current) => [createdEvent, ...current]);
-      setSelectedEvent(createdEvent);
       setCreateForm({
         name: "",
         description: "",
@@ -322,6 +323,8 @@ export default function ExplorePage() {
         error: "",
         source: "service",
       });
+      await loadEvents(auth.token);
+      setSelectedEvent(createdEvent);
     } catch (error) {
       setStatus((current) => ({
         ...current,
