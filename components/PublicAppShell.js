@@ -33,14 +33,12 @@ export default function PublicAppShell({ title, description, children }) {
           <nav className="flex items-center gap-6">
             {auth?.token ? (
               <>
-                {isAdmin(auth) ? (
-                  <Link
-                    href="/explore"
-                    className="text-[var(--text-main)] transition-colors hover:text-[var(--accent)]"
-                  >
-                    Manage Events
-                  </Link>
-                ) : null}
+                <Link
+                  href="/explore"
+                  className="text-[var(--text-main)] transition-colors hover:text-[var(--accent)]"
+                >
+                  {isAdmin(auth) ? "Manage Events" : "Browse Events"}
+                </Link>
                 <Link
                   href="/dashboard"
                   className="text-[var(--text-main)] transition-colors hover:text-[var(--accent)]"

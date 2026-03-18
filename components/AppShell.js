@@ -8,12 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 
 const navigationItems = [
   { href: "/dashboard", label: "Dashboard", caption: "Your overview" },
-  {
-    href: "/explore",
-    label: "Events",
-    caption: "Admin event access",
-    roles: ["ADMIN"],
-  },
+  { href: "/explore", label: "Events", caption: "Browse and manage events" },
   { href: "/bookings", label: "Bookings", caption: "Reservations" },
   { href: "/payments", label: "Payments", caption: "Wallet and checkout" },
   { href: "/notifications", label: "Notifications", caption: "Alerts and updates" },
@@ -93,14 +88,6 @@ export default function AppShell({ title, description, children }) {
     router.push("/auth");
   };
 
-  const visibleNavigationItems = navigationItems.filter((item) => {
-    if (!item.roles?.length) {
-      return true;
-    }
-
-    return item.roles.includes(auth?.user?.role);
-  });
-
   return (
     <div className="grid h-screen grid-cols-[300px_1fr] overflow-hidden max-[900px]:h-auto max-[900px]:grid-cols-1 max-[900px]:overflow-visible">
       <aside className="grid h-screen grid-rows-[auto_1fr_auto] gap-6 overflow-y-auto bg-[rgba(29,29,27,0.92)] p-6 text-[#f6efe4] max-[900px]:h-auto max-[900px]:overflow-visible">
@@ -113,7 +100,7 @@ export default function AppShell({ title, description, children }) {
         </div>
 
         <nav className="nav-list">
-          {visibleNavigationItems.map((item) => {
+          {navigationItems.map((item) => {
             const isActive = pathname === item.href;
 
             return (
@@ -190,10 +177,6 @@ export default function AppShell({ title, description, children }) {
                 </span>
               ) : null}
             </Link>
-            <div className="header-badge">
-              <span className="badge-dot" />
-              Live product interface
-            </div>
           </div>
         </header>
 
