@@ -92,13 +92,29 @@ export default function NotificationsPage() {
 
   const latestNotification = notifications[0] || null;
 
-  const handleMarkRead = async (notificationId) => {
-    setNotifications((current) =>
-      current.map((item) =>
-        item._id === notificationId ? { ...item, status: "READ" } : item,
-      ),
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("notifications:refresh", {
+        detail: {
+          unreadCount,
+        },
+      }),
     );
-    window.dispatchEvent(new Event("notifications:refresh"));
+  }, [unreadCount]);
+
+  const handleMarkRead = async (notificationId) => {
+    const nextNotifications = notifications.map((item) =>
+      item._id === notificationId ? { ...item, status: "READ" } : item,
+    );
+
+    setNotifications(nextNotifications);
+    window.dispatchEvent(
+      new CustomEvent("notifications:refresh", {
+        detail: {
+          unreadCount: nextNotifications.filter((item) => item.status === "UNREAD").length,
+        },
+      }),
+    );
 
     if (status.source !== "service" || !auth?.token) {
       return;

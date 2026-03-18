@@ -75,5 +75,5 @@ Open `http://localhost:3000`.
 
 - Authentication state is stored in `localStorage`.
 - Register, login, fetch profile, update profile, and delete account are connected to the backend user-service.
-- Notifications page is ready to connect to the notification-service and falls back to preview data if the service is not running yet.
+- Notifications page is ready to connect through the API gateway and falls back to preview data if the notification flow is not available yet.
 - Dashboard, explore, bookings, payments, and tickets are built as product-style pages and are ready to connect to future event, booking, and payment APIs.

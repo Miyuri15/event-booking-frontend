@@ -56,7 +56,16 @@ export default function AppShell({ title, description, children }) {
     const intervalId = window.setInterval(refreshNotifications, 15000);
     const handleFocus = () => refreshNotifications();
     const handleStorage = () => refreshNotifications();
-    const handleNotificationRefresh = () => refreshNotifications();
+    const handleNotificationRefresh = (event) => {
+      const nextUnreadCount = event?.detail?.unreadCount;
+
+      if (typeof nextUnreadCount === "number") {
+        setUnreadCount(nextUnreadCount);
+        return;
+      }
+
+      refreshNotifications();
+    };
 
     window.addEventListener("focus", handleFocus);
     window.addEventListener("storage", handleStorage);
