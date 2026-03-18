@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { clearAuth, getAuth } from "@/lib/auth";
-import { useEffect, useState } from "react";
+import { fetchUserNotifications } from "@/lib/api";
+import { useCallback, useEffect, useState } from "react";
 
 const navigationItems = [
   { href: "/dashboard", label: "Dashboard", caption: "Your overview" },
@@ -22,14 +23,63 @@ export default function AppShell({ title, description, children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [auth, setAuth] = useState(null);
-  const notificationCount = 1;
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     setAuth(getAuth());
   }, [pathname]);
 
+  const refreshNotifications = useCallback(async () => {
+    const currentAuth = getAuth();
+
+    setAuth(currentAuth);
+
+    if (!currentAuth?.token || !currentAuth?.user?.id) {
+      setUnreadCount(0);
+      return;
+    }
+
+    try {
+      const notifications = await fetchUserNotifications(
+        currentAuth.user.id,
+        currentAuth.token,
+      );
+      const nextUnreadCount = Array.isArray(notifications)
+        ? notifications.filter((item) => item.status === "UNREAD").length
+        : 0;
+
+      setUnreadCount(nextUnreadCount);
+    } catch (error) {
+      setUnreadCount(0);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshNotifications();
+
+    const intervalId = window.setInterval(refreshNotifications, 15000);
+    const handleFocus = () => refreshNotifications();
+    const handleStorage = () => refreshNotifications();
+    const handleNotificationRefresh = () => refreshNotifications();
+
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("notifications:refresh", handleNotificationRefresh);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(
+        "notifications:refresh",
+        handleNotificationRefresh,
+      );
+    };
+  }, [refreshNotifications, pathname]);
+
   const handleLogout = () => {
     clearAuth();
+    setUnreadCount(0);
     router.push("/auth");
   };
 
@@ -119,7 +169,7 @@ export default function AppShell({ title, description, children }) {
           </div>
           <div className="flex items-center gap-3">
             <Link
-              aria-label={`Open notifications (${notificationCount} unread)`}
+              aria-label={`Open notifications (${unreadCount} unread)`}
               className={
                 pathname === "/notifications"
                   ? "relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-[rgba(192,90,43,0.28)] bg-[rgba(255,255,255,0.8)] text-[var(--accent-dark)] shadow-[0_0_0_4px_rgba(192,90,43,0.08)]"
@@ -142,9 +192,9 @@ export default function AppShell({ title, description, children }) {
                   strokeWidth="1.8"
                 />
               </svg>
-              {notificationCount > 0 ? (
+              {unreadCount > 0 ? (
                 <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[10px] font-bold leading-none text-white">
-                  {notificationCount > 99 ? "99+" : notificationCount}
+                  {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
               ) : null}
             </Link>

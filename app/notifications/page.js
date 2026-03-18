@@ -28,6 +28,10 @@ const fallbackNotifications = [
   },
 ];
 
+function formatTypeLabel(type) {
+  return type.replaceAll("_", " ");
+}
+
 export default function NotificationsPage() {
   const [auth, setAuth] = useState(null);
   const [notifications, setNotifications] = useState([]);
@@ -55,6 +59,7 @@ export default function NotificationsPage() {
           error: "",
           source: "service",
         });
+        window.dispatchEvent(new Event("notifications:refresh"));
       } catch (error) {
         setNotifications(fallbackNotifications);
         setStatus({
@@ -74,12 +79,25 @@ export default function NotificationsPage() {
     [notifications],
   );
 
+  const readCount = useMemo(
+    () => notifications.filter((item) => item.status === "READ").length,
+    [notifications],
+  );
+
+  const inAppCount = useMemo(
+    () => notifications.filter((item) => item.channel === "IN_APP").length,
+    [notifications],
+  );
+
+  const latestNotification = notifications[0] || null;
+
   const handleMarkRead = async (notificationId) => {
     setNotifications((current) =>
       current.map((item) =>
         item._id === notificationId ? { ...item, status: "READ" } : item,
       ),
     );
+    window.dispatchEvent(new Event("notifications:refresh"));
 
     if (status.source !== "service" || !auth?.token) {
       return;
@@ -87,6 +105,7 @@ export default function NotificationsPage() {
 
     try {
       await markNotificationAsRead(notificationId, auth.token);
+      window.dispatchEvent(new Event("notifications:refresh"));
     } catch (error) {
       // Keep optimistic UI.
     }
