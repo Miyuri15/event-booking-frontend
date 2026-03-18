@@ -25,7 +25,12 @@ function PasswordToggleButton({ isVisible, onClick }) {
       type="button"
     >
       {isVisible ? (
-        <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
+        <svg
+          aria-hidden="true"
+          className="h-5 w-5"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
           <path
             d="M3 3l18 18"
             stroke="currentColor"
@@ -49,7 +54,12 @@ function PasswordToggleButton({ isVisible, onClick }) {
           />
         </svg>
       ) : (
-        <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
+        <svg
+          aria-hidden="true"
+          className="h-5 w-5"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
           <path
             d="M2.5 12C3.73 8.29 7.75 4.8 13 4.8S22.27 8.29 23.5 12C22.27 15.71 18.25 19.2 13 19.2S3.73 15.71 2.5 12Z"
             stroke="currentColor"
@@ -58,7 +68,13 @@ function PasswordToggleButton({ isVisible, onClick }) {
             strokeWidth="1.8"
             transform="translate(-1 0)"
           />
-          <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
+          <circle
+            cx="12"
+            cy="12"
+            r="3"
+            stroke="currentColor"
+            strokeWidth="1.8"
+          />
         </svg>
       )}
     </button>
@@ -107,11 +123,11 @@ export default function AuthPage() {
 
     try {
       const data = await loginUser(loginForm);
-      saveAuth(data);
+
       setLoginForm(initialLoginState);
-      setShowLoginPassword(false);
       router.push(data?.user?.role === "ADMIN" ? "/explore" : "/dashboard");
     } catch (error) {
+      console.error("Login error:", error);
       setStatus({
         loading: false,
         error: error.message,
@@ -119,7 +135,6 @@ export default function AuthPage() {
       });
     }
   };
-
   return (
     <main className="mx-auto grid min-h-screen w-[min(1160px,calc(100%-2rem))] grid-cols-[1.05fr_0.95fr] items-stretch gap-6 pt-8 pb-12 max-[900px]:grid-cols-1">
       <section className="flex items-stretch">

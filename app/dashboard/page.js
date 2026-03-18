@@ -6,34 +6,81 @@ import {
   createAdminUser,
   deleteAdminUser,
   fetchAdminUsers,
-  fetchUserEvents,
+  fetchEvents, // Changed from fetchUserEvents
   updateAdminUser,
 } from "@/lib/api";
 import { getAuth, isAdmin } from "@/lib/auth";
 import { useEffect, useState } from "react";
-
-const featuredEvents = [
-  {
-    title: "Design Futures Summit",
-    category: "Conference",
-    location: "Colombo Innovation Hall",
-    date: "April 12",
-  },
-  {
-    title: "Neon Harbor Music Night",
-    category: "Concert",
-    location: "Port City Arena",
-    date: "April 19",
-  },
-  {
-    title: "Founders Breakfast Circle",
-    category: "Networking",
-    location: "Cinnamon Grand",
-    date: "April 24",
-  },
-];
+import Link from "next/link";
 
 function UserDashboard({ auth }) {
+  const [featuredEvents, setFeaturedEvents] = useState([]);
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    recommended: 0,
+    upcoming: 0,
+    savedVenues: 0
+  });
+
+  useEffect(() => {
+    const loadUserEvents = async () => {
+      if (!auth?.token) return;
+
+      try {
+        // Fetch featured events (maybe upcoming or popular ones)
+        const featuredResponse = await fetchEvents({
+          limit: 3,
+          status: 'Active',
+          sort: 'date'
+        }, auth.token);
+
+        // Fetch user's upcoming bookings/events
+        const upcomingResponse = await fetchEvents({
+          status: 'Active',
+          startDate: new Date().toISOString(),
+          limit: 3
+        }, auth.token);
+
+        // Handle the response structure (with pagination)
+        const featuredEventsData = featuredResponse.data || [];
+        const upcomingEventsData = upcomingResponse.data || [];
+
+        setFeaturedEvents(featuredEventsData);
+        setUpcomingEvents(upcomingEventsData);
+        
+        // Update stats
+        setStats({
+          recommended: featuredResponse.pagination?.total || featuredEventsData.length,
+          upcoming: upcomingResponse.pagination?.total || upcomingEventsData.length,
+          savedVenues: 12 // This might come from user preferences later
+        });
+      } catch (error) {
+        console.error('Failed to load events:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserEvents();
+  }, [auth]);
+
+  if (loading) {
+    return (
+      <AppShell
+        title="Dashboard"
+        description="Loading your personalized event recommendations..."
+      >
+        <section className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)]">
+          <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
+            Loading
+          </p>
+          <h3 className="mb-3 text-[1.05rem]">Preparing your dashboard...</h3>
+        </section>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell
       title="Dashboard"
@@ -56,19 +103,19 @@ function UserDashboard({ auth }) {
 
           <div className="mt-[1.2rem] grid grid-cols-3 gap-[0.85rem] max-[900px]:grid-cols-1">
             <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-              <strong className="mb-1 block text-2xl">08</strong>
+              <strong className="mb-1 block text-2xl">{stats.recommended}</strong>
               <span className="text-[var(--text-muted)]">
                 Recommended events
               </span>
             </div>
             <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-              <strong className="mb-1 block text-2xl">03</strong>
+              <strong className="mb-1 block text-2xl">{stats.upcoming}</strong>
               <span className="text-[var(--text-muted)]">
                 Upcoming experiences
               </span>
             </div>
             <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-              <strong className="mb-1 block text-2xl">12</strong>
+              <strong className="mb-1 block text-2xl">{stats.savedVenues}</strong>
               <span className="text-[var(--text-muted)]">Saved venues</span>
             </div>
           </div>
@@ -80,33 +127,24 @@ function UserDashboard({ auth }) {
           </p>
           <h3 className="mb-3 text-[1.05rem]">Your event rhythm this month</h3>
           <div className="grid gap-4">
-            <div className="flex items-start gap-[0.9rem] rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.65)] p-4">
-              <span className="mt-[0.45rem] h-3 w-3 shrink-0 rounded-full bg-[var(--accent)]" />
-              <div>
-                <strong>Friday</strong>
-                <p className="mb-0 text-[var(--text-muted)]">
-                  Live rooftop session at 8:00 PM
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-[0.9rem] rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.65)] p-4">
-              <span className="mt-[0.45rem] h-3 w-3 shrink-0 rounded-full bg-[var(--accent)]" />
-              <div>
-                <strong>Sunday</strong>
-                <p className="mb-0 text-[var(--text-muted)]">
-                  Creative workshop reservation opens at noon
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-[0.9rem] rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.65)] p-4">
-              <span className="mt-[0.45rem] h-3 w-3 shrink-0 rounded-full bg-[var(--accent)]" />
-              <div>
-                <strong>Next Week</strong>
-                <p className="mb-0 text-[var(--text-muted)]">
-                  Two new tech meetups match your preferences
-                </p>
-              </div>
-            </div>
+            {upcomingEvents.length > 0 ? (
+              upcomingEvents.map((event) => (
+                <div
+                  key={event._id}
+                  className="flex items-start gap-[0.9rem] rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.65)] p-4"
+                >
+                  <span className="mt-[0.45rem] h-3 w-3 shrink-0 rounded-full bg-[var(--accent)]" />
+                  <div>
+                    <strong>{new Date(event.date).toLocaleDateString('en-US', { weekday: 'long' })}</strong>
+                    <p className="mb-0 text-[var(--text-muted)]">
+                      {event.name} at {new Date(event.date).toLocaleTimeString()}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-[var(--text-muted)]">No upcoming events found</p>
+            )}
           </div>
         </article>
       </section>
@@ -119,33 +157,40 @@ function UserDashboard({ auth }) {
           Popular events worth checking today
         </h3>
         <div className="grid grid-cols-3 gap-4 max-[900px]:grid-cols-1">
-          {featuredEvents.map((event) => (
-            <article
-              className="rounded-[24px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.78)] p-[1.2rem] shadow-[0_16px_35px_rgba(50,38,22,0.06)]"
-              key={event.title}
-            >
-              <span className="mb-[0.9rem] inline-flex w-fit rounded-full bg-[rgba(192,90,43,0.11)] px-3 py-[0.4rem] text-[0.82rem] font-bold text-[var(--accent-dark)]">
-                {event.category}
-              </span>
-              <h4 className="mb-2 text-[1.15rem]">{event.title}</h4>
-              <p className="mb-0 text-[var(--text-muted)]">{event.location}</p>
-              <div className="mt-auto flex items-center justify-between gap-4 pt-4">
-                <span>{event.date}</span>
-                <button
-                  className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
-                  type="button"
-                >
-                  View Details
-                </button>
-              </div>
-            </article>
-          ))}
+          {featuredEvents.length > 0 ? (
+            featuredEvents.map((event) => (
+              <article
+                className="rounded-[24px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.78)] p-[1.2rem] shadow-[0_16px_35px_rgba(50,38,22,0.06)]"
+                key={event._id}
+              >
+                <span className="mb-[0.9rem] inline-flex w-fit rounded-full bg-[rgba(192,90,43,0.11)] px-3 py-[0.4rem] text-[0.82rem] font-bold text-[var(--accent-dark)]">
+                  {event.category}
+                </span>
+                <h4 className="mb-2 text-[1.15rem]">{event.name}</h4>
+                <p className="mb-0 text-[var(--text-muted)]">{event.venue}</p>
+                <div className="mt-auto flex items-center justify-between gap-4 pt-4">
+                  <span>{new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  <Link
+                    href={`/events/${event._id}`}
+                    className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px no-underline inline-block"
+                  >
+                    View Details
+                  </Link>
+                </div>
+              </article>
+            ))
+          ) : (
+            <p className="col-span-3 text-center text-[var(--text-muted)] py-8">
+              No featured events available at the moment
+            </p>
+          )}
         </div>
       </section>
     </AppShell>
   );
 }
 
+// AdminDashboard component remains mostly the same but with updated event fetching
 function AdminDashboard({ auth }) {
   const [admins, setAdmins] = useState([]);
   const [events, setEvents] = useState([]);
@@ -169,43 +214,26 @@ function AdminDashboard({ auth }) {
     }
 
     const loadAdminData = async () => {
-      const [adminsResult, eventsResult] = await Promise.allSettled([
-        fetchAdminUsers(auth.token),
-        fetchUserEvents(auth.token),
-      ]);
+      try {
+        // Fetch all events (including all statuses) for admin view
+        const eventsResponse = await fetchEvents({ limit: 100 }, auth.token);
+        
+        // Fetch admin users
+        const adminsResult = await fetchAdminUsers(auth.token);
 
-      if (adminsResult.status === "fulfilled") {
-        setAdmins(Array.isArray(adminsResult.value) ? adminsResult.value : []);
-      } else {
-        setAdmins([]);
-      }
-
-      if (eventsResult.status === "fulfilled") {
-        setEvents(Array.isArray(eventsResult.value) ? eventsResult.value : []);
-      } else {
-        setEvents([]);
-      }
-
-      if (adminsResult.status === "rejected" && eventsResult.status === "rejected") {
-        setStatus({
-          error: adminsResult.reason?.message || "Failed to load admin dashboard data.",
-          success: "",
-        });
-      } else if (eventsResult.status === "rejected") {
-        setStatus({
-          error: "Admin data loaded, but event status data is currently unavailable.",
-          success: "",
-        });
-      } else if (adminsResult.status === "rejected") {
-        setStatus({
-          error: adminsResult.reason?.message || "Admin accounts could not be loaded.",
-          success: "",
-        });
-      } else {
+        setAdmins(Array.isArray(adminsResult) ? adminsResult : []);
+        setEvents(eventsResponse.data || []);
         setStatus({ error: "", success: "" });
+      } catch (error) {
+        setStatus({
+          error: error.message || "Failed to load admin dashboard data.",
+          success: "",
+        });
+        setAdmins([]);
+        setEvents([]);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     loadAdminData();
@@ -218,6 +246,8 @@ function AdminDashboard({ auth }) {
     completed: events.filter((event) => event.status === "Completed").length,
   };
 
+  // Rest of your AdminDashboard component remains the same...
+  // (keep all the existing admin functions and JSX)
   const handleCreateAdmin = async (event) => {
     event.preventDefault();
 
