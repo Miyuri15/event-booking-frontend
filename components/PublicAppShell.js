@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getAuth } from "@/lib/auth";
+import { getAuth, isAdmin } from "@/lib/auth";
 
 export default function PublicAppShell({ title, description, children }) {
   const router = useRouter();
@@ -33,12 +33,14 @@ export default function PublicAppShell({ title, description, children }) {
           <nav className="flex items-center gap-6">
             {auth?.token ? (
               <>
-                <Link
-                  href="/explore"
-                  className="text-[var(--text-main)] transition-colors hover:text-[var(--accent)]"
-                >
-                  Browse Events
-                </Link>
+                {isAdmin(auth) ? (
+                  <Link
+                    href="/explore"
+                    className="text-[var(--text-main)] transition-colors hover:text-[var(--accent)]"
+                  >
+                    Manage Events
+                  </Link>
+                ) : null}
                 <Link
                   href="/dashboard"
                   className="text-[var(--text-main)] transition-colors hover:text-[var(--accent)]"
@@ -48,10 +50,10 @@ export default function PublicAppShell({ title, description, children }) {
               </>
             ) : (
               <Link
-                href="/explore"
+                href="/"
                 className="text-[var(--text-main)] transition-colors hover:text-[var(--accent)]"
               >
-                Browse Events
+                Home
               </Link>
             )}
 

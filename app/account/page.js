@@ -3,7 +3,7 @@
 import AppShell from "@/components/AppShell";
 import AuthGuard from "@/components/AuthGuard";
 import ConfirmationModal from "@/components/ConfirmationModal";
-import { clearAuth, getAuth } from "@/lib/auth";
+import { clearAuth, getAuth, saveAuth } from "@/lib/auth";
 import {
   deleteUserProfile,
   fetchMyProfile,
@@ -101,10 +101,11 @@ export default function AccountPage() {
           id: updated._id,
           name: updated.name,
           email: updated.email,
+          role: updated.role || auth.user.role || "USER",
         },
       };
 
-      localStorage.setItem("event-booking-auth", JSON.stringify(nextAuth));
+      saveAuth(nextAuth);
       setAuth(nextAuth);
 
       setStatus((current) => ({

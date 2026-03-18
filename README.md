@@ -1,13 +1,13 @@
 # Frontend
 
-This is the Next.js frontend for a product-style Event Booking web application. It includes a public landing page, polished authentication, a signed-in product shell, and a backend-connected account flow.
+This is the Next.js frontend for a product-style Event Booking web application. It includes a public landing page, polished authentication through the API gateway, a signed-in product shell, and a backend-connected account flow.
 
 ## Included Routes
 
 - `/` landing page
 - `/auth` login and registration
 - `/dashboard` signed-in dashboard
-- `/explore` event discovery page
+- `/explore` admin-only events page
 - `/bookings` booking portal
 - `/payments` payment portal
 - `/notifications` notification center
@@ -56,7 +56,7 @@ frontend/
 
 ## Environment
 
-The frontend is configured to connect to the backend user-service with:
+The frontend is configured to call the API gateway with:
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
@@ -74,6 +74,7 @@ Open `http://localhost:3000`.
 ## Notes
 
 - Authentication state is stored in `localStorage`.
-- Register, login, fetch profile, update profile, and delete account are connected to the backend user-service.
+- Register, login, fetch profile, update profile, and delete account are sent to the API gateway, which forwards them to the user-service.
+- The `/explore` page is visible only to users with the `ADMIN` role.
 - Notifications page is ready to connect through the API gateway and falls back to preview data if the notification flow is not available yet.
 - Dashboard, explore, bookings, payments, and tickets are built as product-style pages and are ready to connect to future event, booking, and payment APIs.
