@@ -16,11 +16,62 @@ const initialLoginState = {
   password: "",
 };
 
+function PasswordToggleButton({ isVisible, onClick }) {
+  return (
+    <button
+      aria-label={isVisible ? "Hide password" : "Show password"}
+      className="grid h-10 w-10 place-items-center rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] text-[var(--secondary)]"
+      onClick={onClick}
+      type="button"
+    >
+      {isVisible ? (
+        <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
+          <path
+            d="M3 3l18 18"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="1.8"
+          />
+          <path
+            d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="1.8"
+          />
+          <path
+            d="M9.88 5.09A9.77 9.77 0 0 1 12 4.8c5.25 0 9.27 3.49 10.5 7.2a11.82 11.82 0 0 1-3.02 4.55M6.61 6.61C4.55 7.93 3.15 9.82 2.5 12c1.23 3.71 5.25 7.2 10.5 7.2 1.79 0 3.45-.41 4.92-1.12"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="1.8"
+          />
+        </svg>
+      ) : (
+        <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
+          <path
+            d="M2.5 12C3.73 8.29 7.75 4.8 13 4.8S22.27 8.29 23.5 12C22.27 15.71 18.25 19.2 13 19.2S3.73 15.71 2.5 12Z"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="1.8"
+            transform="translate(-1 0)"
+          />
+          <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 export default function AuthPage() {
   const router = useRouter();
   const [mode, setMode] = useState("login");
   const [registerForm, setRegisterForm] = useState(initialRegisterState);
   const [loginForm, setLoginForm] = useState(initialLoginState);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [status, setStatus] = useState({
     loading: false,
     error: "",
@@ -34,6 +85,7 @@ export default function AuthPage() {
     try {
       await registerUser(registerForm);
       setRegisterForm(initialRegisterState);
+      setShowRegisterPassword(false);
       setMode("login");
       setStatus({
         loading: false,
@@ -57,6 +109,7 @@ export default function AuthPage() {
       const data = await loginUser(loginForm);
       saveAuth(data);
       setLoginForm(initialLoginState);
+      setShowLoginPassword(false);
       router.push(data?.user?.role === "ADMIN" ? "/explore" : "/dashboard");
     } catch (error) {
       setStatus({
@@ -161,19 +214,25 @@ export default function AuthPage() {
 
             <label className="grid gap-2 text-[0.95rem] text-[var(--text-main)]">
               <span>Password</span>
-              <input
-                className="w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none focus:border-[rgba(192,90,43,0.45)] focus:shadow-[0_0_0_4px_rgba(192,90,43,0.12)]"
-                type="password"
-                value={loginForm.password}
-                onChange={(event) =>
-                  setLoginForm((current) => ({
-                    ...current,
-                    password: event.target.value,
-                  }))
-                }
-                placeholder="Enter your password"
-                required
-              />
+              <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.3rem] focus-within:border-[rgba(192,90,43,0.45)] focus-within:shadow-[0_0_0_4px_rgba(192,90,43,0.12)]">
+                <input
+                  className="password-field-input w-full px-0 py-[0.65rem]"
+                  type={showLoginPassword ? "text" : "password"}
+                  value={loginForm.password}
+                  onChange={(event) =>
+                    setLoginForm((current) => ({
+                      ...current,
+                      password: event.target.value,
+                    }))
+                  }
+                  placeholder="Enter your password"
+                  required
+                />
+                <PasswordToggleButton
+                  isVisible={showLoginPassword}
+                  onClick={() => setShowLoginPassword((current) => !current)}
+                />
+              </div>
             </label>
 
             <button
@@ -229,19 +288,25 @@ export default function AuthPage() {
 
             <label className="grid gap-2 text-[0.95rem] text-[var(--text-main)]">
               <span>Password</span>
-              <input
-                className="w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none focus:border-[rgba(192,90,43,0.45)] focus:shadow-[0_0_0_4px_rgba(192,90,43,0.12)]"
-                type="password"
-                value={registerForm.password}
-                onChange={(event) =>
-                  setRegisterForm((current) => ({
-                    ...current,
-                    password: event.target.value,
-                  }))
-                }
-                placeholder="Minimum 6 characters"
-                required
-              />
+              <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.3rem] focus-within:border-[rgba(192,90,43,0.45)] focus-within:shadow-[0_0_0_4px_rgba(192,90,43,0.12)]">
+                <input
+                  className="password-field-input w-full px-0 py-[0.65rem]"
+                  type={showRegisterPassword ? "text" : "password"}
+                  value={registerForm.password}
+                  onChange={(event) =>
+                    setRegisterForm((current) => ({
+                      ...current,
+                      password: event.target.value,
+                    }))
+                  }
+                  placeholder="Minimum 6 characters"
+                  required
+                />
+                <PasswordToggleButton
+                  isVisible={showRegisterPassword}
+                  onClick={() => setShowRegisterPassword((current) => !current)}
+                />
+              </div>
             </label>
 
             <button
