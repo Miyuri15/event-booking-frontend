@@ -2,13 +2,18 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { clearAuth, getAuth } from "@/lib/auth";
+import { clearAuth, getAuth, isAdmin } from "@/lib/auth";
 import { fetchUserNotifications } from "@/lib/api";
 import { useCallback, useEffect, useState } from "react";
 
 const navigationItems = [
   { href: "/dashboard", label: "Dashboard", caption: "Your overview" },
-  { href: "/explore", label: "Explore", caption: "Find events" },
+  {
+    href: "/explore",
+    label: "Events",
+    caption: "Admin event access",
+    roles: ["ADMIN"],
+  },
   { href: "/bookings", label: "Bookings", caption: "Reservations" },
   { href: "/payments", label: "Payments", caption: "Wallet and checkout" },
   { href: "/notifications", label: "Notifications", caption: "Alerts and updates" },
@@ -88,6 +93,14 @@ export default function AppShell({ title, description, children }) {
     router.push("/auth");
   };
 
+  const visibleNavigationItems = navigationItems.filter((item) => {
+    if (!item.roles?.length) {
+      return true;
+    }
+
+    return item.roles.includes(auth?.user?.role);
+  });
+
   return (
     <div className="grid h-screen grid-cols-[300px_1fr] overflow-hidden max-[900px]:h-auto max-[900px]:grid-cols-1 max-[900px]:overflow-visible">
       <aside className="grid h-screen grid-rows-[auto_1fr_auto] gap-6 overflow-y-auto bg-[rgba(29,29,27,0.92)] p-6 text-[#f6efe4] max-[900px]:h-auto max-[900px]:overflow-visible">
@@ -100,7 +113,7 @@ export default function AppShell({ title, description, children }) {
         </div>
 
         <nav className="nav-list">
-          {navigationItems.map((item) => {
+          {visibleNavigationItems.map((item) => {
             const isActive = pathname === item.href;
 
             return (
@@ -121,6 +134,9 @@ export default function AppShell({ title, description, children }) {
             <>
               <p className="footer-label">Signed in as</p>
               <p className="footer-name">{auth.user.name || auth.user.email}</p>
+              <p className="text-[0.78rem] uppercase tracking-[0.18em] text-[rgba(246,239,228,0.72)]">
+                {isAdmin(auth) ? "Admin" : "User"}
+              </p>
               <button className="secondary-button sidebar-button" onClick={handleLogout} type="button">
                 Logout
               </button>
