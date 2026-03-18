@@ -66,7 +66,10 @@ export default function AppShell({ title, description, children }) {
       window.clearInterval(intervalId);
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("storage", handleStorage);
-      window.removeEventListener("notifications:refresh", handleNotificationRefresh);
+      window.removeEventListener(
+        "notifications:refresh",
+        handleNotificationRefresh,
+      );
     };
   }, [refreshNotifications, pathname]);
 
@@ -133,7 +136,7 @@ export default function AppShell({ title, description, children }) {
           </div>
           <div className="header-actions">
             <Link
-              aria-label="Open notifications"
+              aria-label={`Open notifications (${unreadCount} unread)`}
               className={
                 pathname === "/notifications"
                   ? "notification-icon-button active-notification-icon-button"
@@ -142,9 +145,22 @@ export default function AppShell({ title, description, children }) {
               href="/notifications"
               title="Notifications"
             >
-              <span className="notification-bell" aria-hidden="true" />
+              <svg
+                aria-hidden="true"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M15 17h5l-1.405-1.405A2.03 2.03 0 0 1 18 14.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.8"
+                />
+              </svg>
               {unreadCount > 0 ? (
-                <span className="notification-count-badge">
+                <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[10px] font-bold leading-none text-white">
                   {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
               ) : null}
