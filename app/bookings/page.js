@@ -3,30 +3,46 @@
 import AppShell from "@/components/AppShell";
 import AuthGuard from "@/components/AuthGuard";
 import { useMemo, useState, useEffect } from "react";
-import { fetchMyBookings, fetchEventsForBookingPage } from "@/lib/api";
+import {
+  fetchMyBookings,
+  fetchEventsForBookingPage,
+  bookEvent,
+} from "@/lib/api";
 import { getAuth } from "@/lib/auth";
 import EventSelection from "./EventSelection";
 import TicketSelection from "./TicketSelection";
-import BookingReview from "./BookingReview";
 import PaymentReview from "./PaymentReview";
 
 const reservationSteps = [
-  "Choose event", // Removed "and ticket tier"
+  "Choose event",
   "Select seat count and attendee details",
-  "Confirm booking summary",
-  "Proceed to payment and receive ticket",
+  "Final review and confirm booking",
 ];
+
+// Helper function to format date
+const formatDate = (dateString) => {
+  if (!dateString) return "Date TBD";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};
 
 export default function BookingsPage() {
   const [auth, setAuth] = useState(null);
   const [bookings, setBookings] = useState([]);
-  const [selectedEventId, setSelectedEventId] = useState(null); // Initially no event selected
+  const [selectedEventId, setSelectedEventId] = useState(null);
   const [ticketCount, setTicketCount] = useState(2);
   const [step, setStep] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [confirmationMessage, setConfirmationMessage] = useState("");
   const [myBookings, setMyBookings] = useState(null);
-  const [bookableEvents, setBookableEvents] = useState([]); // State to store events
+  const [bookableEvents, setBookableEvents] = useState([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
+  const [isLoadingBookings, setIsLoadingBookings] = useState(true);
+  const [isPlacingBooking, setIsPlacingBooking] = useState(false);
 
   useEffect(() => {
     setAuth(getAuth());
@@ -37,13 +53,19 @@ export default function BookingsPage() {
       return;
     }
 
-    // Load my bookings
     const loadBookings = async () => {
+      setIsLoadingBookings(true);
       try {
-        const data = await fetchMyBookings(auth.token);
+        const data = await fetchMyBookings(auth.token, {
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        });
         setMyBookings(data);
+        console.log("My bookings loaded:", data);
       } catch (error) {
         console.error("Error loading my bookings:", error.message);
+      } finally {
+        setIsLoadingBookings(false);
       }
     };
 
@@ -56,19 +78,22 @@ export default function BookingsPage() {
     }
 
     const fetchEventData = async () => {
+      setIsLoadingEvents(true);
       try {
-        const response = await fetchEventsForBookingPage(auth.token); // API call to fetch events
+        const response = await fetchEventsForBookingPage(auth.token, {
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        });
         if (response?.data) {
-          setBookableEvents(response.data); // Update state with the fetched events
+          setBookableEvents(response.data);
           if (response.data.length > 0) {
-            setSelectedEventId(response.data[0]._id); // Set the first event as the selected one
-            console.log("Fetched events:", response.data); // Log the fetched events for debugging
-            // setted first event
-            console.log("Selected event set to:", response.data[0]); // Log the selected event for debugging
+            setSelectedEventId(response.data[0]._id);
           }
         }
       } catch (error) {
         console.error("Error fetching events:", error.message);
+      } finally {
+        setIsLoadingEvents(false);
       }
     };
 
@@ -78,11 +103,14 @@ export default function BookingsPage() {
   const selectedEvent = useMemo(
     () =>
       bookableEvents.find((event) => event._id === selectedEventId) ||
-      bookableEvents[0], // If no event is selected, select the first one by default
+      bookableEvents[0],
     [selectedEventId, bookableEvents],
   );
 
-  const subtotal = selectedEvent?.ticketPrice * ticketCount;
+  // Calculate totals only if selectedEvent exists
+  const subtotal = selectedEvent?.ticketPrice
+    ? selectedEvent.ticketPrice * ticketCount
+    : 0;
   const serviceFee = Math.round(subtotal * 0.1);
   const total = subtotal + serviceFee;
 
@@ -96,27 +124,49 @@ export default function BookingsPage() {
   };
 
   const nextStep = () => {
-    setStep((current) => Math.min(current + 1, 4));
+    setStep((current) => Math.min(current + 1, 3));
   };
 
   const previousStep = () => {
     setStep((current) => Math.max(current - 1, 1));
   };
 
-  const confirmBooking = () => {
-    const nextBooking = {
-      title: selectedEvent.name,
-      date: selectedEvent.date,
-      status: "Confirmed",
-      numberOfTickets: ticketCount,
-      venue: selectedEvent.venue,
-    };
+  const confirmBooking = async () => {
+    if (!selectedEvent || !auth?.token) return;
 
-    setBookings((current) => [nextBooking, ...current]);
-    setConfirmationMessage(
-      `${selectedEvent.name} is booked for ${ticketCount} ticket(s).`,
-    );
-    setShowModal(false);
+    setIsPlacingBooking(true);
+    try {
+      await bookEvent(
+        selectedEvent._id,
+        {
+          numberOfTickets: ticketCount,
+        },
+        auth.token,
+      );
+
+      const nextBooking = {
+        title: selectedEvent.name,
+        date: formatDate(selectedEvent.date),
+        status: "Confirmed",
+        numberOfTickets: ticketCount,
+        venue: selectedEvent.venue,
+      };
+
+      setBookings((current) => [nextBooking, ...current]);
+      setConfirmationMessage(
+        `${selectedEvent.name} is booked for ${ticketCount} ticket(s). Booking placed successfully!`,
+      );
+      setShowModal(false);
+
+      // Refresh my bookings
+      const data = await fetchMyBookings(auth.token);
+      setMyBookings(data);
+    } catch (error) {
+      console.error("Booking failed:", error);
+      alert("Booking failed: " + error.message);
+    } finally {
+      setIsPlacingBooking(false);
+    }
   };
 
   return (
@@ -160,12 +210,43 @@ export default function BookingsPage() {
             <h3 className="mb-3 text-[1.05rem]">Booking summary preview</h3>
             <div className="grid gap-4">
               <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                <span>Selected Event</span>
-                <strong>{selectedEvent?.name}</strong>
+                <span>Selected Event </span>
+                {isLoadingEvents ? (
+                  <div className="animate-pulse">
+                    <div className="h-5 w-32 bg-[rgba(192,90,43,0.2)] rounded mt-1"></div>
+                    <div className="h-4 w-48 bg-[rgba(54,45,32,0.1)] rounded mt-2"></div>
+                  </div>
+                ) : (
+                  <>
+                    <strong>
+                      {selectedEvent?.name || "No event selected"}
+                    </strong>
+                    {selectedEvent && (
+                      <p className="text-sm text-[var(--text-muted)] mt-1">
+                        {formatDate(selectedEvent.date)} • {selectedEvent.venue}
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
               <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                <span>Estimated Total</span>
-                <strong>LKR {total.toLocaleString()}</strong>
+                <span>Estimated Total </span>
+                {isLoadingEvents ? (
+                  <div className="animate-pulse">
+                    <div className="h-5 w-24 bg-[rgba(192,90,43,0.2)] rounded mt-1"></div>
+                    <div className="h-4 w-36 bg-[rgba(54,45,32,0.1)] rounded mt-2"></div>
+                  </div>
+                ) : (
+                  <>
+                    <strong>LKR {total.toLocaleString()}</strong>
+                    {selectedEvent && (
+                      <p className="text-sm text-[var(--text-muted)] mt-1">
+                        {ticketCount} ticket(s) × LKR{" "}
+                        {selectedEvent.ticketPrice?.toLocaleString() || 0}
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
             </div>
             {confirmationMessage ? (
@@ -175,14 +256,20 @@ export default function BookingsPage() {
             ) : null}
             <div className="mt-4 flex flex-wrap gap-3">
               <button
-                className="cursor-pointer rounded-full border-0 bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] px-[1.35rem] py-[0.95rem] text-white shadow-[0_12px_26px_rgba(192,90,43,0.28)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
+                className="cursor-pointer rounded-full border-0 bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] px-[1.35rem] py-[0.95rem] text-white shadow-[0_12px_26px_rgba(192,90,43,0.28)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={openBookingFlow}
+                disabled={
+                  isLoadingEvents ||
+                  !selectedEvent ||
+                  bookableEvents.length === 0
+                }
                 type="button"
               >
-                Start Booking
+                {isLoadingEvents ? "Loading..." : "Start Booking"}
               </button>
               <button
-                className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
+                className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px disabled:opacity-50"
+                disabled={isLoadingEvents || !selectedEvent}
                 type="button"
               >
                 View Seat Map
@@ -197,26 +284,61 @@ export default function BookingsPage() {
           </p>
           <h3 className="mb-3 text-[1.05rem]">Current booking activity</h3>
           <div className="grid gap-4">
-            {myBookings?.map((booking) => (
-              <article
-                className="flex items-start gap-[0.9rem] rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.65)] p-4"
-                key={booking?.id}
-              >
-                <div>
-                  <h4 className="mb-2 text-[1.15rem]">{booking.title}</h4>
-                  <p className="mb-0 text-[var(--text-muted)]">
-                    {booking?.venue || "Unknown Venue"}
-                  </p>
-                </div>
-                <div className="ml-auto flex items-center gap-4">
-                  <span>{booking?.date}</span>
-                  <strong>{booking?.numberOfTickets} ticket(s)</strong>
-                  <span className="inline-flex items-center rounded-full bg-[rgba(33,83,79,0.12)] px-[0.8rem] py-[0.45rem] text-[0.82rem] font-bold text-[var(--secondary)]">
-                    {booking?.status}
-                  </span>
-                </div>
-              </article>
-            ))}
+            {isLoadingBookings ? (
+              // Loading skeletons for bookings
+              Array(3)
+                .fill(0)
+                .map((_, index) => (
+                  <div
+                    key={index}
+                    className="flex items-start gap-[0.9rem] rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.65)] p-4"
+                  >
+                    <div className="flex-1">
+                      <div className="h-5 w-48 bg-[rgba(192,90,43,0.2)] rounded animate-pulse mb-2"></div>
+                      <div className="h-4 w-32 bg-[rgba(54,45,32,0.1)] rounded animate-pulse"></div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="h-4 w-24 bg-[rgba(54,45,32,0.1)] rounded animate-pulse"></div>
+                      <div className="h-4 w-16 bg-[rgba(54,45,32,0.1)] rounded animate-pulse"></div>
+                      <div className="h-6 w-20 bg-[rgba(33,83,79,0.12)] rounded-full animate-pulse"></div>
+                    </div>
+                  </div>
+                ))
+            ) : myBookings && myBookings.length > 0 ? (
+              myBookings.map((booking) => (
+                <article
+                  className="flex items-start gap-[0.9rem] rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.65)] p-4"
+                  key={booking?.id || booking?._id}
+                >
+                  <div className="flex-1">
+                    <h4 className="mb-2 text-[1.15rem]">
+                      {booking.title || booking.name}
+                    </h4>
+                    <p className="mb-0 text-[var(--text-muted)]">
+                      {booking?.venue || "Unknown Venue"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <span>
+                      {booking?.eventDate
+                        ? formatDate(booking.eventDate)
+                        : "Date TBD"}
+                    </span>
+                    <strong>
+                      {booking?.numberOfTickets || booking?.ticketCount || 0}{" "}
+                      ticket(s)
+                    </strong>
+                    <span className="inline-flex items-center rounded-full bg-[rgba(33,83,79,0.12)] px-[0.8rem] py-[0.45rem] text-[0.82rem] font-bold text-[var(--secondary)]">
+                      {booking?.status || "Confirmed"}
+                    </span>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <p className="text-[var(--text-muted)] py-4">
+                No bookings found.
+              </p>
+            )}
           </div>
         </section>
 
@@ -248,8 +370,8 @@ export default function BookingsPage() {
                 </button>
               </div>
 
-              {/* Steps 1-4 */}
-              <div className="my-5 grid grid-cols-2 gap-4 max-[900px]:grid-cols-1">
+              {/* Steps indicator - updated to handle 3 steps correctly */}
+              <div className="my-5 grid grid-cols-3 gap-4 max-[900px]:grid-cols-1">
                 {reservationSteps.map((label, index) => (
                   <div
                     className={
@@ -265,13 +387,29 @@ export default function BookingsPage() {
               </div>
 
               {/* Show steps */}
-              {step === 1 && (
-                <EventSelection
-                  bookableEvents={bookableEvents}
-                  selectedEventId={selectedEventId}
-                  setSelectedEventId={setSelectedEventId}
-                />
-              )}
+              {step === 1 &&
+                (isLoadingEvents ? (
+                  <div className="grid grid-cols-3 gap-4 max-[900px]:grid-cols-1">
+                    {Array(3)
+                      .fill(0)
+                      .map((_, index) => (
+                        <div
+                          key={index}
+                          className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.82)] p-4"
+                        >
+                          <div className="h-5 w-32 bg-[rgba(192,90,43,0.2)] rounded animate-pulse mb-2"></div>
+                          <div className="h-4 w-24 bg-[rgba(54,45,32,0.1)] rounded animate-pulse mb-2"></div>
+                          <div className="h-4 w-20 bg-[rgba(54,45,32,0.1)] rounded animate-pulse"></div>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <EventSelection
+                    bookableEvents={bookableEvents}
+                    selectedEventId={selectedEventId}
+                    setSelectedEventId={setSelectedEventId}
+                  />
+                ))}
               {step === 2 && (
                 <TicketSelection
                   step={step}
@@ -281,43 +419,38 @@ export default function BookingsPage() {
                 />
               )}
               {step === 3 && (
-                <BookingReview
+                <PaymentReview
                   selectedEvent={selectedEvent}
-                  ticketCount={ticketCount}
                   total={total}
+                  ticketCount={ticketCount}
+                  isProcessing={isPlacingBooking}
+                  onConfirm={confirmBooking}
                 />
               )}
-              {step === 4 && (
-                <PaymentReview selectedEvent={selectedEvent} total={total} />
-              )}
 
-              {/* Buttons for step navigation */}
+              {/* Buttons for step navigation - updated for 3 steps */}
               <div className="mt-4 grid grid-cols-[1fr_auto] items-center gap-4 max-[900px]:grid-cols-1">
                 <button
-                  className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
-                  disabled={step === 1}
+                  className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={step === 1 || isPlacingBooking}
                   onClick={previousStep}
                   type="button"
                 >
                   Back
                 </button>
-                {step < 4 ? (
+                {step < 3 ? (
                   <button
-                    className="cursor-pointer rounded-full border-0 bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] px-[1.35rem] py-[0.95rem] text-white shadow-[0_12px_26px_rgba(192,90,43,0.28)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
+                    className="cursor-pointer rounded-full border-0 bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] px-[1.35rem] py-[0.95rem] text-white shadow-[0_12px_26px_rgba(192,90,43,0.28)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px disabled:opacity-50"
                     onClick={nextStep}
+                    disabled={
+                      (step === 1 && (!selectedEventId || isLoadingEvents)) ||
+                      isPlacingBooking
+                    }
                     type="button"
                   >
-                    Continue
+                    {step === 1 && isLoadingEvents ? "Loading..." : "Continue"}
                   </button>
-                ) : (
-                  <button
-                    className="cursor-pointer rounded-full border-0 bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] px-[1.35rem] py-[0.95rem] text-white shadow-[0_12px_26px_rgba(192,90,43,0.28)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
-                    onClick={confirmBooking}
-                    type="button"
-                  >
-                    Confirm Booking
-                  </button>
-                )}
+                ) : null}
               </div>
             </section>
           </div>
