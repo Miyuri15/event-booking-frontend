@@ -199,16 +199,23 @@ function EventDetailPanel({ event, adminMode }) {
   }
 
   return (
-    <section className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px]">
-      <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-        {adminMode ? "Admin Preview" : "Event Details"}
-      </p>
+    <section className="sticky top-6 rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px]">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
+          Event Details
+        </p>
+        {adminMode && (
+          <span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-[0.65rem] font-bold tracking-wider text-white uppercase">
+            Admin Preview
+          </span>
+        )}
+      </div>
       <h3 className="mb-3 text-[1.2rem]">{event.name}</h3>
       <p className="leading-[1.7] text-[var(--text-muted)]">
         {event.description}
       </p>
 
-      <div className="mt-5 grid grid-cols-4 gap-4 max-[1000px]:grid-cols-2 max-[560px]:grid-cols-1">
+      <div className="mt-5 grid grid-cols-2 gap-4 max-[560px]:grid-cols-1">
         <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.68)] p-4">
           <span className="block text-[0.8rem] uppercase tracking-[0.16em] text-[var(--text-muted)]">
             Venue

@@ -2,75 +2,87 @@
 
 import AppShell from "@/components/AppShell";
 import AuthGuard from "@/components/AuthGuard";
-import { useMemo, useState } from "react";
-
-const initialBookings = [
-  {
-    title: "Pulse Arena Live",
-    date: "April 28, 8:00 PM",
-    status: "Confirmed",
-    tickets: 2,
-    venue: "Colombo Arena",
-  },
-  {
-    title: "Future of Product Asia",
-    date: "May 03, 9:00 AM",
-    status: "Pending Payment",
-    tickets: 1,
-    venue: "Hilton Colombo",
-  },
-];
+import { useMemo, useState, useEffect } from "react";
+import { fetchMyBookings, fetchEventsForBookingPage } from "@/lib/api";
+import { getAuth } from "@/lib/auth";
+import EventSelection from "./EventSelection";
+import TicketSelection from "./TicketSelection";
+import BookingReview from "./BookingReview";
+import PaymentReview from "./PaymentReview";
 
 const reservationSteps = [
-  "Choose event and ticket tier",
+  "Choose event", // Removed "and ticket tier"
   "Select seat count and attendee details",
   "Confirm booking summary",
   "Proceed to payment and receive ticket",
 ];
 
-const bookableEvents = [
-  {
-    id: "evt-001",
-    title: "Neon Harbor Music Night",
-    venue: "Port City Arena",
-    date: "May 11, 8:00 PM",
-    ticketTier: "Premium Floor",
-    price: 7500,
-  },
-  {
-    id: "evt-002",
-    title: "Design Futures Summit",
-    venue: "Colombo Innovation Hall",
-    date: "May 18, 9:00 AM",
-    ticketTier: "Delegate Pass",
-    price: 12000,
-  },
-  {
-    id: "evt-003",
-    title: "Lanterns and Jazz Evening",
-    venue: "Independence Arcade",
-    date: "May 24, 7:30 PM",
-    ticketTier: "Garden Seating",
-    price: 5400,
-  },
-];
-
 export default function BookingsPage() {
-  const [bookings, setBookings] = useState(initialBookings);
-  const [selectedEventId, setSelectedEventId] = useState(bookableEvents[0].id);
+  const [auth, setAuth] = useState(null);
+  const [bookings, setBookings] = useState([]);
+  const [selectedEventId, setSelectedEventId] = useState(null); // Initially no event selected
   const [ticketCount, setTicketCount] = useState(2);
   const [step, setStep] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [confirmationMessage, setConfirmationMessage] = useState("");
+  const [myBookings, setMyBookings] = useState(null);
+  const [bookableEvents, setBookableEvents] = useState([]); // State to store events
+
+  useEffect(() => {
+    setAuth(getAuth());
+  }, []);
+
+  useEffect(() => {
+    if (!auth?.token) {
+      return;
+    }
+
+    // Load my bookings
+    const loadBookings = async () => {
+      try {
+        const data = await fetchMyBookings(auth.token);
+        setMyBookings(data);
+      } catch (error) {
+        console.error("Error loading my bookings:", error.message);
+      }
+    };
+
+    loadBookings();
+  }, [auth]);
+
+  useEffect(() => {
+    if (!auth?.token) {
+      return;
+    }
+
+    const fetchEventData = async () => {
+      try {
+        const response = await fetchEventsForBookingPage(auth.token); // API call to fetch events
+        if (response?.data) {
+          setBookableEvents(response.data); // Update state with the fetched events
+          if (response.data.length > 0) {
+            setSelectedEventId(response.data[0]._id); // Set the first event as the selected one
+            console.log("Fetched events:", response.data); // Log the fetched events for debugging
+            // setted first event
+            console.log("Selected event set to:", response.data[0]); // Log the selected event for debugging
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching events:", error.message);
+      }
+    };
+
+    fetchEventData();
+  }, [auth]);
 
   const selectedEvent = useMemo(
     () =>
-      bookableEvents.find((event) => event.id === selectedEventId) ||
-      bookableEvents[0],
-    [selectedEventId],
+      bookableEvents.find((event) => event._id === selectedEventId) ||
+      bookableEvents[0], // If no event is selected, select the first one by default
+    [selectedEventId, bookableEvents],
   );
 
-  const subtotal = selectedEvent.price * ticketCount;
+  const subtotal = selectedEvent?.ticketPrice * ticketCount;
   const serviceFee = Math.round(subtotal * 0.1);
   const total = subtotal + serviceFee;
 
@@ -93,16 +105,16 @@ export default function BookingsPage() {
 
   const confirmBooking = () => {
     const nextBooking = {
-      title: selectedEvent.title,
+      title: selectedEvent.name,
       date: selectedEvent.date,
       status: "Confirmed",
-      tickets: ticketCount,
+      numberOfTickets: ticketCount,
       venue: selectedEvent.venue,
     };
 
     setBookings((current) => [nextBooking, ...current]);
     setConfirmationMessage(
-      `${selectedEvent.title} is booked for ${ticketCount} ticket(s).`,
+      `${selectedEvent.name} is booked for ${ticketCount} ticket(s).`,
     );
     setShowModal(false);
   };
@@ -114,6 +126,7 @@ export default function BookingsPage() {
         description="Manage reservations, preview the booking flow, and review the current state of your upcoming event purchases."
       >
         <section className="grid grid-cols-2 gap-6 max-[900px]:grid-cols-1">
+          {/* Booking Flow Section */}
           <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
             <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
               Booking Flow
@@ -139,6 +152,7 @@ export default function BookingsPage() {
             </div>
           </article>
 
+          {/* Booking Summary Section */}
           <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
             <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
               Reserve Quickly
@@ -147,11 +161,7 @@ export default function BookingsPage() {
             <div className="grid gap-4">
               <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
                 <span>Selected Event</span>
-                <strong>{selectedEvent.title}</strong>
-              </div>
-              <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                <span>Ticket Tier</span>
-                <strong>{selectedEvent.ticketTier}</strong>
+                <strong>{selectedEvent?.name}</strong>
               </div>
               <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
                 <span>Estimated Total</span>
@@ -187,22 +197,22 @@ export default function BookingsPage() {
           </p>
           <h3 className="mb-3 text-[1.05rem]">Current booking activity</h3>
           <div className="grid gap-4">
-            {bookings.map((booking) => (
+            {myBookings?.map((booking) => (
               <article
                 className="flex items-start gap-[0.9rem] rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.65)] p-4"
-                key={booking.title}
+                key={booking?.id}
               >
                 <div>
                   <h4 className="mb-2 text-[1.15rem]">{booking.title}</h4>
                   <p className="mb-0 text-[var(--text-muted)]">
-                    {booking.venue}
+                    {booking?.venue || "Unknown Venue"}
                   </p>
                 </div>
                 <div className="ml-auto flex items-center gap-4">
-                  <span>{booking.date}</span>
-                  <strong>{booking.tickets} ticket(s)</strong>
+                  <span>{booking?.date}</span>
+                  <strong>{booking?.numberOfTickets} ticket(s)</strong>
                   <span className="inline-flex items-center rounded-full bg-[rgba(33,83,79,0.12)] px-[0.8rem] py-[0.45rem] text-[0.82rem] font-bold text-[var(--secondary)]">
-                    {booking.status}
+                    {booking?.status}
                   </span>
                 </div>
               </article>
@@ -238,6 +248,7 @@ export default function BookingsPage() {
                 </button>
               </div>
 
+              {/* Steps 1-4 */}
               <div className="my-5 grid grid-cols-2 gap-4 max-[900px]:grid-cols-1">
                 {reservationSteps.map((label, index) => (
                   <div
@@ -253,97 +264,34 @@ export default function BookingsPage() {
                 ))}
               </div>
 
-              {step === 1 ? (
-                <div className="grid grid-cols-3 gap-4 max-[900px]:grid-cols-1">
-                  {bookableEvents.map((event) => (
-                    <button
-                      className={
-                        event.id === selectedEventId
-                          ? "w-full cursor-pointer rounded-[20px] border border-[rgba(192,90,43,0.35)] bg-[rgba(255,255,255,0.82)] p-4 text-left shadow-[0_0_0_4px_rgba(192,90,43,0.08)]"
-                          : "w-full cursor-pointer rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.82)] p-4 text-left"
-                      }
-                      key={event.id}
-                      onClick={() => setSelectedEventId(event.id)}
-                      type="button"
-                    >
-                      <span className="mb-[0.9rem] inline-flex w-fit rounded-full bg-[rgba(192,90,43,0.11)] px-3 py-[0.4rem] text-[0.82rem] font-bold text-[var(--accent-dark)]">
-                        {event.ticketTier}
-                      </span>
-                      <h4 className="mb-2 text-[1.15rem]">{event.title}</h4>
-                      <p className="mb-0 text-[var(--text-muted)]">
-                        {event.venue}
-                      </p>
-                      <strong>{event.date}</strong>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
+              {/* Show steps */}
+              {step === 1 && (
+                <EventSelection
+                  bookableEvents={bookableEvents}
+                  selectedEventId={selectedEventId}
+                  setSelectedEventId={setSelectedEventId}
+                />
+              )}
+              {step === 2 && (
+                <TicketSelection
+                  step={step}
+                  ticketCount={ticketCount}
+                  setTicketCount={setTicketCount}
+                  selectedEvent={selectedEvent}
+                />
+              )}
+              {step === 3 && (
+                <BookingReview
+                  selectedEvent={selectedEvent}
+                  ticketCount={ticketCount}
+                  total={total}
+                />
+              )}
+              {step === 4 && (
+                <PaymentReview selectedEvent={selectedEvent} total={total} />
+              )}
 
-              {step === 2 ? (
-                <div className="grid gap-4">
-                  <label className="grid gap-2 text-[0.95rem] text-[var(--text-main)]">
-                    <span>Number of Tickets</span>
-                    <input
-                      className="w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none focus:border-[rgba(192,90,43,0.45)] focus:shadow-[0_0_0_4px_rgba(192,90,43,0.12)]"
-                      max="6"
-                      min="1"
-                      onChange={(event) =>
-                        setTicketCount(Number(event.target.value) || 1)
-                      }
-                      type="number"
-                      value={ticketCount}
-                    />
-                  </label>
-
-                  <div className="grid gap-4">
-                    <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                      <span>Ticket Price</span>
-                      <strong>
-                        LKR {selectedEvent.price.toLocaleString()}
-                      </strong>
-                    </div>
-                    <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                      <span>Seats</span>
-                      <strong>{ticketCount}</strong>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-
-              {step === 3 ? (
-                <div className="grid gap-4">
-                  <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                    <span>Event</span>
-                    <strong>{selectedEvent.title}</strong>
-                  </div>
-                  <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                    <span>Venue</span>
-                    <strong>{selectedEvent.venue}</strong>
-                  </div>
-                  <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                    <span>Total Due</span>
-                    <strong>LKR {total.toLocaleString()}</strong>
-                  </div>
-                </div>
-              ) : null}
-
-              {step === 4 ? (
-                <div className="grid gap-4">
-                  <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                    <span>Ready For Payment</span>
-                    <strong>{selectedEvent.title}</strong>
-                  </div>
-                  <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                    <span>Amount</span>
-                    <strong>LKR {total.toLocaleString()}</strong>
-                  </div>
-                  <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                    <span>Status</span>
-                    <strong>Reservation locked for checkout</strong>
-                  </div>
-                </div>
-              ) : null}
-
+              {/* Buttons for step navigation */}
               <div className="mt-4 grid grid-cols-[1fr_auto] items-center gap-4 max-[900px]:grid-cols-1">
                 <button
                   className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
