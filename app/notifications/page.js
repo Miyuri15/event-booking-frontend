@@ -7,7 +7,7 @@ import {
   markNotificationAsRead,
 } from "@/lib/api";
 import { getAuth } from "@/lib/auth";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const fallbackNotifications = [
   {
@@ -102,6 +102,29 @@ export default function NotificationsPage() {
     source: "service",
   });
 
+  const loadNotifications = useCallback(async (currentAuth) => {
+    if (!currentAuth?.token || !currentAuth?.user?.id) {
+      return;
+    }
+
+    try {
+      const data = await fetchUserNotifications(currentAuth.user.id, currentAuth.token);
+      setNotifications(Array.isArray(data) ? data : []);
+      setStatus({
+        loading: false,
+        error: "",
+        source: "service",
+      });
+    } catch (error) {
+      setNotifications(fallbackNotifications);
+      setStatus({
+        loading: false,
+        error: "Live notifications are not fully connected yet. Showing contract preview data.",
+        source: "fallback",
+      });
+    }
+  }, []);
+
   useEffect(() => {
     setAuth(getAuth());
   }, []);
@@ -111,28 +134,20 @@ export default function NotificationsPage() {
       return;
     }
 
-    const loadNotifications = async () => {
-      try {
-        const data = await fetchUserNotifications(auth.user.id, auth.token);
-        setNotifications(Array.isArray(data) ? data : []);
-        setStatus({
-          loading: false,
-          error: "",
-          source: "service",
-        });
-        window.dispatchEvent(new Event("notifications:refresh"));
-      } catch (error) {
-        setNotifications(fallbackNotifications);
-        setStatus({
-          loading: false,
-          error: "Live notifications are not fully connected yet. Showing contract preview data.",
-          source: "fallback",
-        });
-      }
-    };
+    loadNotifications(auth);
 
-    loadNotifications();
-  }, [auth]);
+    const intervalId = window.setInterval(() => {
+      loadNotifications(getAuth());
+    }, 15000);
+    const handleFocus = () => loadNotifications(getAuth());
+
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [auth, loadNotifications]);
 
   useEffect(() => {
     setShowAllNotifications(false);
