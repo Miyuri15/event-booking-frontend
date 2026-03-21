@@ -7,6 +7,7 @@ import { getAuth } from "@/lib/auth";
 import EventSelection from "@/app/bookings/EventSelection";
 import TicketSelection from "@/app/bookings/TicketSelection";
 import PaymentReview from "@/app/bookings/PaymentReview";
+import ConfirmationModal from "@/components/ConfirmationModal";
 
 const reservationSteps = [
   "Choose event",
@@ -30,6 +31,7 @@ export default function BookingModal({
   const [bookableEvents, setBookableEvents] = useState([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [isPlacingBooking, setIsPlacingBooking] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Track if we have a preselected event from the parent
   const hasPreselectedEvent = !!preselectedEventId;
@@ -52,11 +54,15 @@ export default function BookingModal({
         });
 
         if (response?.data) {
-          setBookableEvents(response.data);
+          const availableEvents = response.data.filter(
+            (event) =>
+              event.status === "Active" && Number(event.availableSeats || 0) > 0,
+          );
+          setBookableEvents(availableEvents);
 
           // If we have a preselected event, set it
           if (preselectedEventId) {
-            const preselectedEvent = response.data.find(
+            const preselectedEvent = availableEvents.find(
               (event) => event._id === preselectedEventId,
             );
             if (preselectedEvent) {
@@ -66,11 +72,11 @@ export default function BookingModal({
               setTimeout(() => {
                 setStep(2);
               }, 100);
-            } else if (response.data.length > 0) {
-              setSelectedEventId(response.data[0]._id);
+            } else if (availableEvents.length > 0) {
+              setSelectedEventId(availableEvents[0]._id);
             }
-          } else if (response.data.length > 0 && !selectedEventId) {
-            setSelectedEventId(response.data[0]._id);
+          } else if (availableEvents.length > 0 && !selectedEventId) {
+            setSelectedEventId(availableEvents[0]._id);
           }
         }
       } catch (error) {
@@ -88,6 +94,7 @@ export default function BookingModal({
     if (!isOpen) {
       setStep(hasPreselectedEvent ? 2 : 1); // Reset to appropriate step
       setTicketCount(2);
+      setErrorMessage("");
     }
   }, [isOpen, hasPreselectedEvent]);
 
@@ -128,7 +135,7 @@ export default function BookingModal({
       onClose();
     } catch (error) {
       console.error("Booking failed:", error);
-      alert("Booking failed: " + error.message);
+      setErrorMessage(error.message || "Booking failed. Please try again.");
     } finally {
       setIsPlacingBooking(false);
     }
@@ -277,6 +284,15 @@ export default function BookingModal({
             </button>
           ) : null}
         </div>
+        <ConfirmationModal
+          isOpen={Boolean(errorMessage)}
+          title="Booking could not be completed"
+          description={errorMessage}
+          confirmLabel="Close"
+          cancelLabel="Dismiss"
+          onConfirm={() => setErrorMessage("")}
+          onCancel={() => setErrorMessage("")}
+        />
       </section>
     </div>
   );

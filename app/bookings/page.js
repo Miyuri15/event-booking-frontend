@@ -3,6 +3,8 @@
 import AppShell from "@/components/AppShell";
 import AuthGuard from "@/components/AuthGuard";
 import { useMemo, useState, useEffect } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   fetchMyBookings,
   fetchEventsForBookingPage,
@@ -30,7 +32,48 @@ const formatDate = (dateString) => {
   });
 };
 
+const getBookingEvent = (booking) => {
+  return booking?.event || booking?.eventId || booking?.eventDetails || null;
+};
+
+const getBookingTitle = (booking) => {
+  const eventDetails = getBookingEvent(booking);
+  return (
+    booking?.title ||
+    booking?.name ||
+    booking?.eventName ||
+    eventDetails?.name ||
+    eventDetails?.title ||
+    "Untitled Event"
+  );
+};
+
+const getBookingVenue = (booking) => {
+  const eventDetails = getBookingEvent(booking);
+  return booking?.venue || eventDetails?.venue || "Unknown Venue";
+};
+
+const getBookingDate = (booking) => {
+  const eventDetails = getBookingEvent(booking);
+  return (
+    booking?.eventDate ||
+    booking?.date ||
+    eventDetails?.date ||
+    eventDetails?.eventDate ||
+    null
+  );
+};
+
+const getBookingStatus = (booking) => {
+  return booking?.status || booking?.paymentStatus || "Pending";
+};
+
+const getBookingTicketCount = (booking) => {
+  return booking?.numberOfTickets || booking?.ticketCount || 0;
+};
+
 export default function BookingsPage() {
+  const searchParams = useSearchParams();
   const [auth, setAuth] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState(null);
@@ -43,6 +86,7 @@ export default function BookingsPage() {
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [isLoadingBookings, setIsLoadingBookings] = useState(true);
   const [isPlacingBooking, setIsPlacingBooking] = useState(false);
+  const [bookingError, setBookingError] = useState("");
 
   useEffect(() => {
     setAuth(getAuth());
@@ -85,9 +129,19 @@ export default function BookingsPage() {
           sortOrder: "desc",
         });
         if (response?.data) {
-          setBookableEvents(response.data);
-          if (response.data.length > 0) {
-            setSelectedEventId(response.data[0]._id);
+          const availableEvents = response.data.filter(
+            (event) =>
+              event.status === "Active" && Number(event.availableSeats || 0) > 0,
+          );
+          setBookableEvents(availableEvents);
+          if (availableEvents.length > 0) {
+            const requestedEventId = searchParams.get("eventId");
+            const preselectedEvent = requestedEventId
+              ? availableEvents.find((event) => event._id === requestedEventId)
+              : null;
+            setSelectedEventId(
+              preselectedEvent?._id || availableEvents[0]._id,
+            );
           }
         }
       } catch (error) {
@@ -98,7 +152,24 @@ export default function BookingsPage() {
     };
 
     fetchEventData();
-  }, [auth]);
+  }, [auth, searchParams]);
+
+  useEffect(() => {
+    if (!bookableEvents.length) return;
+
+    const requestedEventId = searchParams.get("eventId");
+    if (!requestedEventId) return;
+
+    const preselectedEvent = bookableEvents.find(
+      (event) => event._id === requestedEventId,
+    );
+
+    if (preselectedEvent) {
+      setSelectedEventId(preselectedEvent._id);
+      setShowModal(true);
+      setStep(2);
+    }
+  }, [bookableEvents, searchParams]);
 
   const selectedEvent = useMemo(
     () =>
@@ -147,7 +218,7 @@ export default function BookingsPage() {
       const nextBooking = {
         title: selectedEvent.name,
         date: formatDate(selectedEvent.date),
-        status: "Confirmed",
+        status: "Pending",
         numberOfTickets: ticketCount,
         venue: selectedEvent.venue,
       };
@@ -163,7 +234,7 @@ export default function BookingsPage() {
       setMyBookings(data);
     } catch (error) {
       console.error("Booking failed:", error);
-      alert("Booking failed: " + error.message);
+      setBookingError(error.message || "Booking failed. Please try again.");
     } finally {
       setIsPlacingBooking(false);
     }
@@ -305,25 +376,32 @@ export default function BookingsPage() {
                 >
                   <div className="flex-1">
                     <h4 className="mb-2 text-[1.15rem]">
-                      {booking.title || booking.name}
+                      {getBookingTitle(booking)}
                     </h4>
                     <p className="mb-0 text-[var(--text-muted)]">
-                      {booking?.venue || "Unknown Venue"}
+                      {getBookingVenue(booking)}
                     </p>
                   </div>
                   <div className="flex items-center gap-4 flex-wrap">
                     <span>
-                      {booking?.eventDate
-                        ? formatDate(booking.eventDate)
+                      {getBookingDate(booking)
+                        ? formatDate(getBookingDate(booking))
                         : "Date TBD"}
                     </span>
                     <strong>
-                      {booking?.numberOfTickets || booking?.ticketCount || 0}{" "}
-                      ticket(s)
+                      {getBookingTicketCount(booking)} ticket(s)
                     </strong>
                     <span className="inline-flex items-center rounded-full bg-[rgba(33,83,79,0.12)] px-[0.8rem] py-[0.45rem] text-[0.82rem] font-bold text-[var(--secondary)]">
-                      {booking?.status || "Confirmed"}
+                      {getBookingStatus(booking)}
                     </span>
+                    {getBookingStatus(booking).toLowerCase() === "pending" ? (
+                      <Link
+                        className="inline-flex items-center rounded-full bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] px-[1rem] py-[0.65rem] text-[0.82rem] font-bold text-white shadow-[0_12px_26px_rgba(192,90,43,0.22)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
+                        href={`/payments?bookingId=${booking?._id || booking?.id}`}
+                      >
+                        Proceed to Payment
+                      </Link>
+                    ) : null}
                   </div>
                 </article>
               ))
@@ -450,6 +528,37 @@ export default function BookingsPage() {
           </div>
         ) : null}
       </AppShell>
+      {bookingError ? (
+        <div
+          className="fixed inset-0 z-40 grid place-items-center bg-[rgba(17,17,17,0.45)] p-4"
+          onClick={() => setBookingError("")}
+          role="presentation"
+        >
+          <section
+            className="max-h-[90vh] w-[min(560px,100%)] overflow-auto rounded-[28px] border border-[rgba(54,45,32,0.1)] bg-[#fffaf4] p-6 shadow-[0_30px_70px_rgba(17,17,17,0.22)]"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
+              Booking Issue
+            </p>
+            <h3 className="mb-3 text-[1.05rem]">Booking could not be completed</h3>
+            <p className="leading-[1.7] text-[var(--text-muted)]">
+              {bookingError}
+            </p>
+            <div className="mt-4 flex justify-end">
+              <button
+                className="cursor-pointer rounded-full border-0 bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] px-[1.35rem] py-[0.95rem] text-white shadow-[0_12px_26px_rgba(192,90,43,0.28)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
+                onClick={() => setBookingError("")}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </AuthGuard>
   );
 }

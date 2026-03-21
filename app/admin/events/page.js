@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import AuthGuard from "@/components/AuthGuard";
+import ConfirmationModal from "@/components/ConfirmationModal";
 import {
   fetchEvents,
   createEvent,
@@ -429,6 +430,8 @@ export default function AdminEventsPage() {
   const [itemsPerPage, setItemsPerPage] = useState(12);
   const [filterStatus, setFilterStatus] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
+  const [eventPendingDelete, setEventPendingDelete] = useState(null);
+  const [isDeletingEvent, setIsDeletingEvent] = useState(false);
 
   // Get unique categories from events for filter dropdown
   const categories = useMemo(() => {
@@ -529,25 +532,24 @@ export default function AdminEventsPage() {
     }
   };
 
-  const handleDeleteEvent = async (eventId) => {
-    if (
-      !confirm(
-        "Are you sure you want to delete this event? This action cannot be undone.",
-      )
-    )
-      return;
+  const handleDeleteEvent = async () => {
+    if (!eventPendingDelete) return;
 
+    setIsDeletingEvent(true);
     try {
-      await deleteEvent(eventId, auth.token);
-      setEvents(events.filter((e) => e._id !== eventId));
+      await deleteEvent(eventPendingDelete._id, auth.token);
+      setEvents(events.filter((e) => e._id !== eventPendingDelete._id));
       setStatus({ error: "", success: "Event deleted successfully!" });
       setTimeout(() => setStatus({ error: "", success: "" }), 3000);
+      setEventPendingDelete(null);
       loadEvents();
     } catch (error) {
       setStatus({
         error: error.message || "Failed to delete event",
         success: "",
       });
+    } finally {
+      setIsDeletingEvent(false);
     }
   };
 
@@ -605,6 +607,26 @@ export default function AdminEventsPage() {
             </div>
           </div>
         )}
+
+        <ConfirmationModal
+          isOpen={Boolean(eventPendingDelete)}
+          title="Delete this event?"
+          description={
+            eventPendingDelete
+              ? `Are you sure you want to delete "${eventPendingDelete.name}"? This action cannot be undone.`
+              : ""
+          }
+          confirmLabel="Delete Event"
+          cancelLabel="Keep Event"
+          isDanger
+          isLoading={isDeletingEvent}
+          onConfirm={handleDeleteEvent}
+          onCancel={() => {
+            if (!isDeletingEvent) {
+              setEventPendingDelete(null);
+            }
+          }}
+        />
 
         {/* Status Messages */}
         {status.error && (
@@ -745,7 +767,7 @@ export default function AdminEventsPage() {
                   key={event._id}
                   event={event}
                   onEdit={handleEdit}
-                  onDelete={handleDeleteEvent}
+                  onDelete={() => setEventPendingDelete(event)}
                 />
               ))}
             </div>

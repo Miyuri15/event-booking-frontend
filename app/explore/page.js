@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
 import AuthGuard from "@/components/AuthGuard";
+import ConfirmationModal from "@/components/ConfirmationModal";
 import { fetchEvents } from "@/lib/api";
 import { getAuth, isAdmin } from "@/lib/auth";
 import BookingModal from "@/components/booking/BookingModal";
@@ -322,27 +323,43 @@ export default function ExplorePage() {
   });
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [selectedEventForBooking, setSelectedEventForBooking] = useState(null);
+  const [bookingFeedback, setBookingFeedback] = useState({
+    isOpen: false,
+    title: "",
+    description: "",
+  });
 
   const handleBookNow = (event) => {
     setSelectedEventForBooking(event);
-
-    const handleBookingSuccess = (eventName, ticketCount) => {
-      // You can show a success toast or notification here
-      console.log(
-        `Successfully booked ${ticketCount} tickets for ${eventName}`,
-      );
-      // Optionally refresh events to update available seats
-      // You can refetch events here if needed
-    };
     setIsBookingModalOpen(true);
   };
 
-  const handleBookingSuccess = (eventName, ticketCount) => {
-    // You can show a success toast or notification here
-    alert(`Successfully booked ${ticketCount} tickets for ${eventName}`);
+  const handleBookingSuccess = async (eventName, ticketCount) => {
+    setBookingFeedback({
+      isOpen: true,
+      title: "Booking created successfully",
+      description: `${ticketCount} ticket(s) for ${eventName} were added to your reservations. You can continue to payments from My Reservations.`,
+    });
     console.log(`Successfully booked ${ticketCount} tickets for ${eventName}`);
-    // Optionally refresh events to update available seats
-    // You can refetch events here if needed
+
+    if (!auth?.token) return;
+
+    try {
+      const response = await fetchEvents(
+        {
+          status: "Active",
+          page: currentPage,
+          ...(selectedCategory ? { category: selectedCategory } : {}),
+        },
+        auth.token,
+      );
+
+      if (response && response.data && Array.isArray(response.data)) {
+        setEvents(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to refresh events after booking:", error);
+    }
   };
 
   // Extract unique categories from events
@@ -547,6 +564,28 @@ export default function ExplorePage() {
           onClose={() => setIsBookingModalOpen(false)}
           preselectedEventId={selectedEventForBooking?._id}
           onBookingSuccess={handleBookingSuccess}
+        />
+        <ConfirmationModal
+          isOpen={bookingFeedback.isOpen}
+          title={bookingFeedback.title}
+          description={bookingFeedback.description}
+          confirmLabel="View Reservations"
+          cancelLabel="Keep Browsing"
+          onConfirm={() => {
+            setBookingFeedback({
+              isOpen: false,
+              title: "",
+              description: "",
+            });
+            window.location.href = "/bookings";
+          }}
+          onCancel={() =>
+            setBookingFeedback({
+              isOpen: false,
+              title: "",
+              description: "",
+            })
+          }
         />
       </AppShell>
     </AuthGuard>

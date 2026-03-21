@@ -13,6 +13,8 @@ import { getAuth, isAdmin } from "@/lib/auth";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import BookingModal from "@/components/booking/BookingModal";
+import ConfirmationModal from "@/components/ConfirmationModal";
 
 function formatPrice(value) {
   return `LKR ${Number(value || 0).toLocaleString()}`;
@@ -33,6 +35,13 @@ function UserDashboard({ auth }) {
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [recentBookings, setRecentBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [selectedEventForBooking, setSelectedEventForBooking] = useState(null);
+  const [bookingFeedback, setBookingFeedback] = useState({
+    isOpen: false,
+    title: "",
+    description: "",
+  });
   const [stats, setStats] = useState({
     totalEvents: 0,
     upcomingEvents: 0,
@@ -84,6 +93,19 @@ function UserDashboard({ auth }) {
 
     loadUserEvents();
   }, [auth]);
+
+  const handleBookNow = (event) => {
+    setSelectedEventForBooking(event);
+    setIsBookingModalOpen(true);
+  };
+
+  const handleBookingSuccess = (eventName, ticketCount) => {
+    setBookingFeedback({
+      isOpen: true,
+      title: "Reservation created",
+      description: `${ticketCount} ticket(s) for ${eventName} were added to your reservations. You can proceed to payment from the bookings page.`,
+    });
+  };
 
   if (loading) {
     return (
@@ -155,10 +177,11 @@ function UserDashboard({ auth }) {
           <div className="space-y-3 max-h-[400px] overflow-y-auto">
             {upcomingEvents.length > 0 ? (
               upcomingEvents.map((event) => (
-                <Link
+                <button
                   key={event._id}
-                  href={`/events/${event._id}`}
-                  className="block group"
+                  className="block group w-full text-left"
+                  onClick={() => handleBookNow(event)}
+                  type="button"
                 >
                   <div className="flex items-center gap-4 rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-white p-4 transition-all hover:shadow-md hover:-translate-y-0.5">
                     <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
@@ -191,7 +214,7 @@ function UserDashboard({ auth }) {
                       </span>
                     </div>
                   </div>
-                </Link>
+                </button>
               ))
             ) : (
               <p className="text-center text-[var(--text-muted)] py-8">
@@ -294,12 +317,13 @@ function UserDashboard({ auth }) {
                     <span className="text-xl font-bold text-[var(--accent)]">
                       {formatPrice(event.ticketPrice)}
                     </span>
-                    <Link
-                      href={`/events/${event._id}`}
+                    <button
                       className="cursor-pointer rounded-full bg-gradient-to-r from-[var(--accent)] to-[#d7834d] px-5 py-2 text-sm font-semibold text-white shadow-md hover:shadow-lg transition-all"
+                      onClick={() => handleBookNow(event)}
+                      type="button"
                     >
                       Book Now
-                    </Link>
+                    </button>
                   </div>
                 </div>
               </article>
@@ -311,6 +335,34 @@ function UserDashboard({ auth }) {
           )}
         </div>
       </section>
+      <BookingModal
+        isOpen={isBookingModalOpen}
+        onClose={() => setIsBookingModalOpen(false)}
+        preselectedEventId={selectedEventForBooking?._id}
+        onBookingSuccess={handleBookingSuccess}
+      />
+      <ConfirmationModal
+        isOpen={bookingFeedback.isOpen}
+        title={bookingFeedback.title}
+        description={bookingFeedback.description}
+        confirmLabel="Go to Bookings"
+        cancelLabel="Stay Here"
+        onConfirm={() => {
+          setBookingFeedback({
+            isOpen: false,
+            title: "",
+            description: "",
+          });
+          window.location.href = "/bookings";
+        }}
+        onCancel={() =>
+          setBookingFeedback({
+            isOpen: false,
+            title: "",
+            description: "",
+          })
+        }
+      />
     </AppShell>
   );
 }
