@@ -5,7 +5,7 @@ import AuthGuard from "@/components/AuthGuard";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { fetchMyBookings } from "@/lib/api";
+import { fetchEventById, fetchMyBookings } from "@/lib/api";
 import { getAuth } from "@/lib/auth";
 
 const paymentMethods = [
@@ -33,6 +33,16 @@ const getBookingEvent = (booking) => {
   return booking?.event || booking?.eventId || booking?.eventDetails || null;
 };
 
+const getBookingEventId = (booking) => {
+  const eventDetails = getBookingEvent(booking);
+
+  if (typeof eventDetails === "string") {
+    return eventDetails;
+  }
+
+  return eventDetails?._id || booking?.eventId?._id || booking?.event?._id || null;
+};
+
 const getBookingTitle = (booking) => {
   const eventDetails = getBookingEvent(booking);
   return (
@@ -50,10 +60,15 @@ const getBookingDate = (booking) => {
   return booking?.eventDate || booking?.date || eventDetails?.date || null;
 };
 
-const getBookingTicketPrice = (booking) => {
+const getBookingTicketPrice = (booking, fallbackEvent) => {
   const eventDetails = getBookingEvent(booking);
   return Number(
-    booking?.ticketPrice || eventDetails?.ticketPrice || booking?.price || 0,
+    booking?.ticketPrice ||
+      booking?.price ||
+      booking?.totalPrice ||
+      eventDetails?.ticketPrice ||
+      fallbackEvent?.ticketPrice ||
+      0,
   );
 };
 
@@ -71,6 +86,7 @@ export default function PaymentsPage() {
   const [myBookings, setMyBookings] = useState([]);
   const [isLoadingBookings, setIsLoadingBookings] = useState(true);
   const [bookingsError, setBookingsError] = useState("");
+  const [selectedBookingEvent, setSelectedBookingEvent] = useState(null);
 
   useEffect(() => {
     setAuth(getAuth());
@@ -119,8 +135,42 @@ export default function PaymentsPage() {
     return pendingBookings[0] || null;
   }, [pendingBookings, searchParams]);
 
-  const pricing = useMemo(() => {
+  useEffect(() => {
+    if (!auth?.token || !selectedBooking) {
+      setSelectedBookingEvent(null);
+      return;
+    }
+
     const ticketPrice = getBookingTicketPrice(selectedBooking);
+    if (ticketPrice > 0) {
+      setSelectedBookingEvent(getBookingEvent(selectedBooking));
+      return;
+    }
+
+    const eventId = getBookingEventId(selectedBooking);
+    if (!eventId) {
+      setSelectedBookingEvent(null);
+      return;
+    }
+
+    const loadSelectedEvent = async () => {
+      try {
+        const eventDetails = await fetchEventById(eventId, auth.token);
+        setSelectedBookingEvent(eventDetails || null);
+      } catch (error) {
+        console.error("Failed to load booking event details:", error);
+        setSelectedBookingEvent(null);
+      }
+    };
+
+    loadSelectedEvent();
+  }, [auth, selectedBooking]);
+
+  const pricing = useMemo(() => {
+    const ticketPrice = getBookingTicketPrice(
+      selectedBooking,
+      selectedBookingEvent,
+    );
     const ticketCount = getBookingTicketCount(selectedBooking);
     const subtotal = ticketPrice * ticketCount;
     const serviceFee = Math.round(subtotal * 0.1);
