@@ -6,8 +6,6 @@ import AuthGuard from "@/components/AuthGuard";
 import { fetchEvents } from "@/lib/api";
 import { getAuth, isAdmin } from "@/lib/auth";
 
-const ITEMS_PER_PAGE = 10;
-
 function formatPrice(value) {
   return `LKR ${Number(value || 0).toLocaleString()}`;
 }
@@ -22,14 +20,15 @@ function formatEventDate(value) {
   });
 }
 
-function EventsHero({ adminMode, eventCount, activeCount }) {
+function EventsHero({ adminMode, eventCount }) {
   return (
-    <section className="grid grid-cols-[1.15fr_0.85fr] gap-6 max-[1000px]:grid-cols-1">
-      <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px]">
+    <section className="grid grid-cols-[1.2fr_0.8fr] gap-6 max-[1000px]:grid-cols-1">
+      {/* Main Hero Content */}
+      <article className="rounded-[28px] border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] to-white p-8 shadow-lg backdrop-blur-[14px]">
         <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-          {adminMode ? "Event Control" : "Explore Events"}
+          {adminMode ? "✨ Event Control" : "🎉 Explore Events"}
         </p>
-        <h3 className="mb-3 text-[1.6rem]">
+        <h3 className="mb-3 text-[1.6rem] font-semibold">
           {adminMode
             ? "Monitor listings and keep the event catalog healthy."
             : "Browse the latest experiences and choose what you want to attend."}
@@ -37,22 +36,23 @@ function EventsHero({ adminMode, eventCount, activeCount }) {
         <p className="leading-[1.7] text-[var(--text-muted)]">
           {adminMode
             ? "This workspace keeps admin actions visible while still showing the same live event overview your users see."
-            : "This page shows live event details from the event service, including venue, timing, seat availability, and current status."}
+            : "Discover amazing events happening near you. From concerts to conferences, find your next unforgettable experience."}
         </p>
       </article>
 
-      <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px]">
+      {/* Snapshot Section */}
+      <article className="rounded-[28px] border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] to-white p-8 shadow-lg backdrop-blur-[14px]">
         <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-          Snapshot
+          📊 Snapshot
         </p>
-        <div className="grid grid-cols-2 gap-4 max-[560px]:grid-cols-1">
-          <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.68)] p-4">
-            <strong className="mb-1 block text-3xl">{eventCount}</strong>
-            <span className="text-[var(--text-muted)]">Events available</span>
-          </div>
-          <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.68)] p-4">
-            <strong className="mb-1 block text-3xl">{activeCount}</strong>
-            <span className="text-[var(--text-muted)]">Active listings</span>
+        <div className="grid grid-cols gap-4">
+          <div className="rounded-[20px] bg-gradient-to-br from-orange-50 to-amber-50 p-4 text-center transition-transform hover:scale-105">
+            <strong className="mb-2 block text-4xl font-bold text-[var(--accent)]">
+              {eventCount}
+            </strong>
+            <span className="text-sm text-[var(--text-muted)]">
+              Events available
+            </span>
           </div>
         </div>
       </article>
@@ -62,30 +62,45 @@ function EventsHero({ adminMode, eventCount, activeCount }) {
 
 function CategoryFilter({ categories, selectedCategory, onCategoryChange }) {
   return (
-    <div className="flex flex-wrap gap-2 mb-6">
-      <button
-        onClick={() => onCategoryChange("")}
-        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-          selectedCategory === ""
-            ? "bg-[var(--accent)] text-white shadow-md"
-            : "bg-[rgba(192,90,43,0.1)] text-[var(--accent-dark)] hover:bg-[rgba(192,90,43,0.2)]"
-        }`}
-      >
-        All Events
-      </button>
-      {categories.map((category) => (
+    <div className="mb-8">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-[var(--text-main)]">
+          Browse by Category
+        </h3>
+        {selectedCategory && (
+          <button
+            onClick={() => onCategoryChange("")}
+            className="text-sm text-[var(--accent)] hover:text-[var(--accent-dark)] transition-colors"
+          >
+            Clear filter →
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-3">
         <button
-          key={category}
-          onClick={() => onCategoryChange(category)}
-          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-            selectedCategory === category
-              ? "bg-[var(--accent)] text-white shadow-md"
-              : "bg-[rgba(192,90,43,0.1)] text-[var(--accent-dark)] hover:bg-[rgba(192,90,43,0.2)]"
+          onClick={() => onCategoryChange("")}
+          className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200 ${
+            selectedCategory === ""
+              ? "bg-[var(--accent)] text-white shadow-md shadow-orange-200"
+              : "bg-white border border-[rgba(54,45,32,0.12)] text-[var(--text-main)] hover:bg-gray-50 hover:shadow-md"
           }`}
         >
-          {category}
+          All Events
         </button>
-      ))}
+        {categories.map((category) => (
+          <button
+            key={category}
+            onClick={() => onCategoryChange(category)}
+            className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200 ${
+              selectedCategory === category
+                ? "bg-[var(--accent)] text-white shadow-md shadow-orange-200"
+                : "bg-white border border-[rgba(54,45,32,0.12)] text-[var(--text-main)] hover:bg-gray-50 hover:shadow-md"
+            }`}
+          >
+            {category}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -94,22 +109,23 @@ function EventCard({ event, adminMode, onSelect }) {
   const isReserveDisabled =
     event.status !== "Active" || Number(event.availableSeats) <= 0;
   const eventImage = event.images?.[0]?.url || "/placeholder-event.jpg";
+  const seatsPercentage = (event.availableSeats / event.totalSeats) * 100;
 
   return (
-    <article className="group flex flex-col rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-white overflow-hidden shadow-[0_8px_20px_rgba(50,38,22,0.06)] transition-all duration-300 hover:shadow-[0_16px_35px_rgba(50,38,22,0.12)] hover:-translate-y-1">
+    <article className="group flex flex-col rounded-2xl border border-[rgba(54,45,32,0.08)] bg-white overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
       {/* Event Image */}
-      <div className="relative h-48 overflow-hidden bg-gray-100">
+      <div className="relative h-52 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
         <img
           src={eventImage}
           alt={event.name}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           onError={(e) => {
             e.target.src = "/placeholder-event.jpg";
           }}
         />
         <div className="absolute top-3 right-3">
           <span
-            className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
+            className={`inline-flex rounded-full px-3 py-1 text-xs font-bold shadow-lg ${
               event.status === "Active"
                 ? "bg-green-500 text-white"
                 : event.status === "Completed"
@@ -120,25 +136,34 @@ function EventCard({ event, adminMode, onSelect }) {
             {event.status}
           </span>
         </div>
+        {event.availableSeats <= 10 && event.availableSeats > 0 && (
+          <div className="absolute bottom-3 left-3">
+            <span className="inline-flex rounded-full bg-red-500 text-white px-3 py-1 text-xs font-bold shadow-lg">
+              Only {event.availableSeats} seats left!
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Event Content */}
-      <div className="p-4 flex-1 flex flex-col">
-        <div className="mb-2">
-          <span className="inline-flex rounded-full bg-[rgba(192,90,43,0.11)] px-2.5 py-1 text-xs font-bold text-[var(--accent-dark)]">
+      <div className="p-5 flex-1 flex flex-col">
+        <div className="mb-3">
+          <span className="inline-flex rounded-full bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 text-xs font-bold text-[var(--accent-dark)]">
             {event.category || "Event"}
           </span>
         </div>
 
-        <h4 className="mb-2 text-lg font-bold line-clamp-2">{event.name}</h4>
-        <p className="text-sm text-[var(--text-muted)] line-clamp-2 mb-3">
+        <h4 className="mb-2 text-xl font-bold text-[var(--text-main)] line-clamp-2 group-hover:text-[var(--accent)] transition-colors">
+          {event.name}
+        </h4>
+        <p className="text-sm text-[var(--text-muted)] line-clamp-2 mb-4">
           {event.description}
         </p>
 
         <div className="space-y-2 mt-auto">
           <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
             <svg
-              className="w-4 h-4"
+              className="w-4 h-4 flex-shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -161,7 +186,7 @@ function EventCard({ event, adminMode, onSelect }) {
 
           <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
             <svg
-              className="w-4 h-4"
+              className="w-4 h-4 flex-shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -176,35 +201,46 @@ function EventCard({ event, adminMode, onSelect }) {
             <span>{formatEventDate(event.date)}</span>
           </div>
 
-          <div className="flex items-center justify-between pt-2">
+          <div className="pt-2">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-[var(--text-muted)]">
+                Seats available
+              </span>
+              <span className="text-xs font-semibold">
+                {event.availableSeats}/{event.totalSeats}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-[var(--accent)] to-orange-400 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${seatsPercentage}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-3">
             <div>
               <span className="text-2xl font-bold text-[var(--accent)]">
                 {formatPrice(event.ticketPrice)}
               </span>
             </div>
-            <div className="text-right">
-              <span className="text-xs text-[var(--text-muted)]">Seats</span>
-              <p className="text-sm font-semibold">
-                {event.availableSeats}/{event.totalSeats}
-              </p>
-            </div>
           </div>
         </div>
 
-        <div className="mt-4 flex gap-2">
+        <div className="mt-5 flex gap-2">
           <button
-            className={`flex-1 cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition-all ${
+            className={`flex-1 cursor-pointer rounded-full px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
               isReserveDisabled
-                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                : "bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] text-white shadow-md hover:shadow-lg hover:-translate-y-px"
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                : "bg-gradient-to-r from-[var(--accent)] to-[#d7834d] text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
             }`}
             disabled={isReserveDisabled}
             type="button"
           >
-            {isReserveDisabled ? "Unavailable" : "Reserve"}
+            {isReserveDisabled ? "Unavailable" : "Book Now →"}
           </button>
           <button
-            className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-4 py-2 text-sm font-medium text-[var(--secondary)] transition-all hover:bg-[rgba(33,83,79,0.2)] hover:-translate-y-px"
+            className="cursor-pointer rounded-full border-2 border-[rgba(33,83,79,0.2)] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--secondary)] transition-all duration-200 hover:bg-[rgba(33,83,79,0.05)] hover:-translate-y-0.5"
             type="button"
             onClick={() => onSelect(event)}
           >
@@ -236,22 +272,22 @@ function Pagination({ currentPage, totalPages, onPageChange }) {
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex justify-center items-center gap-2 mt-8">
+    <div className="flex justify-center items-center gap-2 mt-12 mb-6">
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="px-3 py-2 rounded-lg border border-[rgba(54,45,32,0.16)] bg-white text-[var(--text-main)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-all"
+        className="px-5 py-2.5 rounded-xl border border-[rgba(54,45,32,0.16)] bg-white text-[var(--text-main)] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-all font-medium shadow-sm"
       >
-        Previous
+        ← Previous
       </button>
 
       {getPageNumbers().map((page) => (
         <button
           key={page}
           onClick={() => onPageChange(page)}
-          className={`px-3 py-2 rounded-lg transition-all ${
+          className={`min-w-[42px] px-3 py-2.5 rounded-xl transition-all font-medium ${
             currentPage === page
-              ? "bg-[var(--accent)] text-white shadow-md"
+              ? "bg-gradient-to-r from-[var(--accent)] to-[#d7834d] text-white shadow-md"
               : "border border-[rgba(54,45,32,0.16)] bg-white text-[var(--text-main)] hover:bg-gray-50"
           }`}
         >
@@ -262,9 +298,9 @@ function Pagination({ currentPage, totalPages, onPageChange }) {
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="px-3 py-2 rounded-lg border border-[rgba(54,45,32,0.16)] bg-white text-[var(--text-main)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-all"
+        className="px-5 py-2.5 rounded-xl border border-[rgba(54,45,32,0.16)] bg-white text-[var(--text-main)] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-all font-medium shadow-sm"
       >
-        Next
+        Next →
       </button>
     </div>
   );
@@ -278,6 +314,7 @@ export default function ExplorePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalEvents, setTotalEvents] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(9);
   const [status, setStatus] = useState({
     loading: true,
     error: "",
@@ -308,7 +345,6 @@ export default function ExplorePage() {
         const params = {
           status: "Active",
           page: currentPage,
-          limit: ITEMS_PER_PAGE,
         };
 
         if (selectedCategory) {
@@ -316,20 +352,24 @@ export default function ExplorePage() {
         }
 
         const response = await fetchEvents(params, auth.token);
-        console.log("Fetched events response:", response);
 
         // Handle paginated response
         let eventsData = [];
         let paginationData = null;
 
-        if (response && response.data) {
+        if (response && response.data && Array.isArray(response.data)) {
           eventsData = response.data;
+          paginationData = response.pagination;
+        } else if (
+          response &&
+          response.events &&
+          Array.isArray(response.events)
+        ) {
+          eventsData = response.events;
           paginationData = response.pagination;
         } else if (Array.isArray(response)) {
           eventsData = response;
-        } else if (response && response.events) {
-          eventsData = response.events;
-          paginationData = response.pagination;
+          paginationData = null;
         } else {
           eventsData = [];
         }
@@ -339,9 +379,12 @@ export default function ExplorePage() {
         if (paginationData) {
           setTotalPages(paginationData.pages || 1);
           setTotalEvents(paginationData.total || 0);
+          setItemsPerPage(paginationData.limit || 9);
         } else {
-          setTotalPages(Math.ceil(eventsData.length / ITEMS_PER_PAGE));
+          const calculatedPages = Math.ceil(eventsData.length / 9);
+          setTotalPages(calculatedPages > 0 ? calculatedPages : 1);
           setTotalEvents(eventsData.length);
+          setItemsPerPage(9);
         }
 
         if (eventsData.length > 0 && !selectedEvent) {
@@ -363,20 +406,19 @@ export default function ExplorePage() {
   }, [auth, currentPage, selectedCategory]);
 
   const adminMode = useMemo(() => isAdmin(auth), [auth]);
-  const activeCount = useMemo(
-    () => events.filter((event) => event.status === "Active").length,
-    [events],
-  );
 
   const handleCategoryChange = (category) => {
     setSelectedCategory(category);
-    setCurrentPage(1); // Reset to first page when changing category
+    setCurrentPage(1);
   };
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  const startItem = (currentPage - 1) * itemsPerPage + 1;
+  const endItem = Math.min(currentPage * itemsPerPage, totalEvents);
 
   return (
     <AuthGuard>
@@ -385,35 +427,31 @@ export default function ExplorePage() {
         description={
           adminMode
             ? "Admin event workspace with live event visibility and management-focused actions."
-            : "Browse live event overviews, check details, and pick what you want to reserve next."
+            : "Discover and book amazing events. Find concerts, conferences, and more."
         }
       >
         {status.loading ? (
-          <section className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px]">
-            <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-              Loading
-            </p>
-            <h3 className="mb-3 text-[1.05rem]">
-              Preparing the events page...
-            </h3>
-          </section>
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-[var(--accent)] border-t-transparent"></div>
+              <p className="mt-4 text-[var(--text-muted)]">
+                Loading amazing events...
+              </p>
+            </div>
+          </div>
         ) : (
           <>
-            <EventsHero
-              adminMode={adminMode}
-              eventCount={totalEvents}
-              activeCount={activeCount}
-            />
+            <EventsHero adminMode={adminMode} eventCount={totalEvents} />
 
             {status.error && (
-              <p className="mt-6 rounded-2xl border border-[rgba(192,90,43,0.16)] bg-[rgba(192,90,43,0.08)] px-4 py-[0.9rem] text-[var(--accent-dark)]">
-                {status.error}
-              </p>
+              <div className="mt-6 rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4">
+                <p className="text-orange-700">⚠️ {status.error}</p>
+              </div>
             )}
 
             {/* Category Filter */}
             {categories.length > 0 && (
-              <div className="mt-6">
+              <div className="mt-8">
                 <CategoryFilter
                   categories={categories}
                   selectedCategory={selectedCategory}
@@ -422,15 +460,21 @@ export default function ExplorePage() {
               </div>
             )}
 
-            {/* Events Grid - 5 columns on desktop */}
+            {/* Events Grid - 3 columns */}
             <section className="mt-6">
               {events.length === 0 ? (
-                <div className="text-center py-12 rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8">
-                  <p className="text-[var(--text-muted)]">No events found</p>
+                <div className="text-center py-16 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)]">
+                  <div className="text-6xl mb-4">🎭</div>
+                  <p className="text-lg text-[var(--text-muted)]">
+                    No events found
+                  </p>
+                  <p className="text-sm text-[var(--text-muted)] mt-2">
+                    Try selecting a different category or check back later.
+                  </p>
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
                     {events.map((event) => (
                       <EventCard
                         key={event._id}
@@ -441,19 +485,31 @@ export default function ExplorePage() {
                     ))}
                   </div>
 
-                  {/* Pagination */}
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={handlePageChange}
-                  />
+                  {/* Pagination Section */}
+                  {totalPages > 1 && (
+                    <>
+                      <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={handlePageChange}
+                      />
+                      <div className="text-center">
+                        <p className="text-sm text-[var(--text-muted)] bg-gray-50 inline-block px-4 py-2 rounded-full">
+                          Showing {startItem} - {endItem} of {totalEvents}{" "}
+                          events
+                        </p>
+                      </div>
+                    </>
+                  )}
 
-                  {/* Total events info */}
-                  <p className="text-center text-sm text-[var(--text-muted)] mt-4">
-                    Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} -{" "}
-                    {Math.min(currentPage * ITEMS_PER_PAGE, totalEvents)} of{" "}
-                    {totalEvents} events
-                  </p>
+                  {/* Show when only one page */}
+                  {totalPages === 1 && totalEvents > 0 && (
+                    <div className="text-center mt-6">
+                      <p className="text-sm text-[var(--text-muted)] bg-gray-50 inline-block px-4 py-2 rounded-full">
+                        🎉 Showing all {totalEvents} amazing events
+                      </p>
+                    </div>
+                  )}
                 </>
               )}
             </section>
