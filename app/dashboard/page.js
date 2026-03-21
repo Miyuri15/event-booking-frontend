@@ -12,15 +12,31 @@ import {
 import { getAuth, isAdmin } from "@/lib/auth";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+
+function formatPrice(value) {
+  return `LKR ${Number(value || 0).toLocaleString()}`;
+}
+
+function formatEventDate(value) {
+  return new Date(value).toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 function UserDashboard({ auth }) {
   const [featuredEvents, setFeaturedEvents] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [recentBookings, setRecentBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
-    recommended: 0,
-    upcoming: 0,
-    savedVenues: 12, // This might come from user preferences later
+    totalEvents: 0,
+    upcomingEvents: 0,
+    availableSeats: 0,
   });
 
   useEffect(() => {
@@ -28,44 +44,36 @@ function UserDashboard({ auth }) {
       if (!auth?.token) return;
 
       try {
-        // Fetch featured events (with authentication token)
-        const featuredResponse = await fetchEvents(
+        // Fetch all active events
+        const allEventsResponse = await fetchEvents(
           {
-            limit: 3,
             status: "Active",
-            sort: "date",
+            limit: 100,
           },
           auth.token,
         );
 
-        // Fetch upcoming events (with authentication token)
-        const upcomingResponse = await fetchEvents(
-          {
-            status: "Active",
-            // Get events from current date onwards
-            date: { $gte: new Date().toISOString() },
-            limit: 3,
-            sort: "date",
-          },
-          auth.token,
+        const allEvents = allEventsResponse?.data || allEventsResponse || [];
+
+        // Get featured events (first 3)
+        const featured = allEvents.slice(0, 3);
+
+        // Get upcoming events (next 5)
+        const upcoming = allEvents.slice(3, 8);
+
+        // Calculate total available seats
+        const totalSeats = allEvents.reduce(
+          (sum, event) => sum + event.availableSeats,
+          0,
         );
 
-        // Handle the response structure (with pagination)
-        const featuredEventsData =
-          featuredResponse?.data || featuredResponse || [];
-        const upcomingEventsData =
-          upcomingResponse?.data || upcomingResponse || [];
+        setFeaturedEvents(featured);
+        setUpcomingEvents(upcoming);
 
-        setFeaturedEvents(featuredEventsData);
-        setUpcomingEvents(upcomingEventsData);
-
-        // Update stats
         setStats({
-          recommended:
-            featuredResponse?.pagination?.total || featuredEventsData.length,
-          upcoming:
-            upcomingResponse?.pagination?.total || upcomingEventsData.length,
-          savedVenues: 12,
+          totalEvents: allEvents.length,
+          upcomingEvents: upcoming.length,
+          availableSeats: totalSeats,
         });
       } catch (error) {
         console.error("Failed to load events:", error);
@@ -83,12 +91,14 @@ function UserDashboard({ auth }) {
         title="Dashboard"
         description="Loading your personalized event recommendations..."
       >
-        <section className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)]">
-          <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-            Loading
-          </p>
-          <h3 className="mb-3 text-[1.05rem]">Preparing your dashboard...</h3>
-        </section>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-[var(--accent)] border-t-transparent"></div>
+            <p className="mt-4 text-[var(--text-muted)]">
+              Loading your dashboard...
+            </p>
+          </div>
+        </div>
       </AppShell>
     );
   }
@@ -96,16 +106,17 @@ function UserDashboard({ auth }) {
   return (
     <AppShell
       title="Dashboard"
-      description="A personalized starting point for discovering standout events, checking upcoming plans, and getting back into your booking activity quickly."
+      description="Your personalized command center for discovering events, tracking upcoming experiences, and managing your bookings."
     >
+      {/* Welcome Section with Stats */}
       <section className="grid grid-cols-2 gap-6 max-[900px]:grid-cols-1">
-        <article className="min-h-[320px] rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
+        <article className="rounded-[28px] border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] to-white p-8 shadow-lg">
           <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-            Welcome Back
+            👋 Welcome Back
           </p>
-          <h3 className="mb-3 text-[1.05rem]">
+          <h3 className="mb-3 text-[1.6rem] font-semibold">
             {auth?.user?.name
-              ? `${auth.user.name}, your weekend looks open.`
+              ? `${auth.user.name}, ready for your next adventure?`
               : "Your next event is waiting."}
           </h3>
           <p className="leading-[1.7] text-[var(--text-muted)]">
@@ -113,100 +124,183 @@ function UserDashboard({ auth }) {
             your account details ready for faster checkout.
           </p>
 
-          <div className="mt-[1.2rem] grid grid-cols-3 gap-[0.85rem] max-[900px]:grid-cols-1">
-            <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-              <strong className="mb-1 block text-2xl">
-                {stats.recommended}
+          <div className="mt-6 grid grid-cols-2 gap-4">
+            <div className="rounded-[20px] bg-gradient-to-br from-orange-50 to-amber-50 p-4 text-center transition-transform hover:scale-105">
+              <strong className="mb-1 block text-3xl font-bold text-[var(--accent)]">
+                {stats.totalEvents}
               </strong>
-              <span className="text-[var(--text-muted)]">
-                Recommended events
+              <span className="text-sm text-[var(--text-muted)]">
+                Available events
               </span>
             </div>
-            <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-              <strong className="mb-1 block text-2xl">{stats.upcoming}</strong>
-              <span className="text-[var(--text-muted)]">
-                Upcoming experiences
-              </span>
-            </div>
-            <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-              <strong className="mb-1 block text-2xl">
-                {stats.savedVenues}
+            <div className="rounded-[20px] bg-gradient-to-br from-blue-50 to-sky-50 p-4 text-center transition-transform hover:scale-105">
+              <strong className="mb-1 block text-3xl font-bold text-blue-600">
+                {stats.upcomingEvents}
               </strong>
-              <span className="text-[var(--text-muted)]">Saved venues</span>
+              <span className="text-sm text-[var(--text-muted)]">
+                Upcoming this week
+              </span>
             </div>
           </div>
         </article>
 
-        <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
+        {/* Upcoming Events */}
+        <article className="rounded-[28px] border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] to-white p-8 shadow-lg">
           <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-            Coming Up
+            📅 Coming Up
           </p>
-          <h3 className="mb-3 text-[1.05rem]">Your event rhythm this month</h3>
-          <div className="grid gap-4">
+          <h3 className="mb-4 text-[1.2rem] font-semibold">
+            Your event rhythm this week
+          </h3>
+          <div className="space-y-3 max-h-[400px] overflow-y-auto">
             {upcomingEvents.length > 0 ? (
               upcomingEvents.map((event) => (
-                <div
+                <Link
                   key={event._id}
-                  className="flex items-start gap-[0.9rem] rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.65)] p-4"
+                  href={`/events/${event._id}`}
+                  className="block group"
                 >
-                  <span className="mt-[0.45rem] h-3 w-3 shrink-0 rounded-full bg-[var(--accent)]" />
-                  <div>
-                    <strong>
-                      {new Date(event.date).toLocaleDateString("en-US", {
-                        weekday: "long",
-                      })}
-                    </strong>
-                    <p className="mb-0 text-[var(--text-muted)]">
-                      {event.name} at{" "}
-                      {new Date(event.date).toLocaleTimeString("en-US", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
+                  <div className="flex items-center gap-4 rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-white p-4 transition-all hover:shadow-md hover:-translate-y-0.5">
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
+                      <img
+                        src={event.images?.[0]?.url || "/placeholder-event.jpg"}
+                        alt={event.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src = "/placeholder-event.jpg";
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <strong className="block text-[1rem] group-hover:text-[var(--accent)] transition-colors">
+                        {event.name}
+                      </strong>
+                      <p className="text-sm text-[var(--text-muted)] mt-1">
+                        {event.venue} •{" "}
+                        {new Date(event.date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-lg font-bold text-[var(--accent)]">
+                        {formatPrice(event.ticketPrice)}
+                      </span>
+                    </div>
                   </div>
-                </div>
+                </Link>
               ))
             ) : (
-              <p className="text-[var(--text-muted)]">
+              <p className="text-center text-[var(--text-muted)] py-8">
                 No upcoming events found
               </p>
             )}
           </div>
+          <Link
+            href="/explore"
+            className="mt-4 inline-block text-center w-full px-4 py-2 rounded-full border border-[rgba(33,83,79,0.2)] text-[var(--secondary)] hover:bg-[rgba(33,83,79,0.05)] transition-all"
+          >
+            View All Events →
+          </Link>
         </article>
       </section>
 
-      <section className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
+      {/* Featured Picks */}
+      <section className="mt-6 rounded-[28px] border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] to-white p-8 shadow-lg">
         <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-          Featured Picks
+          ⭐ Featured Picks
         </p>
-        <h3 className="mb-3 text-[1.05rem]">
+        <h3 className="mb-6 text-[1.2rem] font-semibold">
           Popular events worth checking today
         </h3>
-        <div className="grid grid-cols-3 gap-4 max-[900px]:grid-cols-1">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {featuredEvents.length > 0 ? (
             featuredEvents.map((event) => (
               <article
-                className="rounded-[24px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.78)] p-[1.2rem] shadow-[0_16px_35px_rgba(50,38,22,0.06)]"
+                className="group rounded-2xl border border-[rgba(54,45,32,0.08)] bg-white overflow-hidden shadow-md transition-all hover:shadow-xl hover:-translate-y-2"
                 key={event._id}
               >
-                <span className="mb-[0.9rem] inline-flex w-fit rounded-full bg-[rgba(192,90,43,0.11)] px-3 py-[0.4rem] text-[0.82rem] font-bold text-[var(--accent-dark)]">
-                  {event.category}
-                </span>
-                <h4 className="mb-2 text-[1.15rem]">{event.name}</h4>
-                <p className="mb-0 text-[var(--text-muted)]">{event.venue}</p>
-                <div className="mt-auto flex items-center justify-between gap-4 pt-4">
-                  <span>
-                    {new Date(event.date).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
-                  <Link
-                    href={`/events/${event._id}`}
-                    className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px no-underline inline-block"
-                  >
-                    View Details
-                  </Link>
+                <div className="relative h-48 overflow-hidden">
+                  <img
+                    src={event.images?.[0]?.url || "/placeholder-event.jpg"}
+                    alt={event.name}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    onError={(e) => {
+                      e.target.src = "/placeholder-event.jpg";
+                    }}
+                  />
+                  <div className="absolute top-3 left-3">
+                    <span className="inline-flex rounded-full bg-[rgba(192,90,43,0.95)] px-3 py-1 text-xs font-bold text-white">
+                      {event.category}
+                    </span>
+                  </div>
+                </div>
+                <div className="p-5">
+                  <h4 className="mb-2 text-lg font-bold line-clamp-1 group-hover:text-[var(--accent)] transition-colors">
+                    {event.name}
+                  </h4>
+                  <p className="text-sm text-[var(--text-muted)] line-clamp-2 mb-3">
+                    {event.description}
+                  </p>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-1 text-sm text-[var(--text-muted)]">
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                      <span className="truncate">{event.venue}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-sm text-[var(--text-muted)]">
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                      <span>
+                        {new Date(event.date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-3 border-t border-[rgba(54,45,32,0.08)]">
+                    <span className="text-xl font-bold text-[var(--accent)]">
+                      {formatPrice(event.ticketPrice)}
+                    </span>
+                    <Link
+                      href={`/events/${event._id}`}
+                      className="cursor-pointer rounded-full bg-gradient-to-r from-[var(--accent)] to-[#d7834d] px-5 py-2 text-sm font-semibold text-white shadow-md hover:shadow-lg transition-all"
+                    >
+                      Book Now
+                    </Link>
+                  </div>
                 </div>
               </article>
             ))
@@ -221,7 +315,7 @@ function UserDashboard({ auth }) {
   );
 }
 
-// AdminDashboard component remains the same but with updated event fetching
+// AdminDashboard with improved UI
 function AdminDashboard({ auth }) {
   const [admins, setAdmins] = useState([]);
   const [events, setEvents] = useState([]);
@@ -240,16 +334,11 @@ function AdminDashboard({ auth }) {
   });
 
   useEffect(() => {
-    if (!auth?.token) {
-      return;
-    }
+    if (!auth?.token) return;
 
     const loadAdminData = async () => {
       try {
-        // Fetch all events (including all statuses) for admin view
         const eventsResponse = await fetchEvents({ limit: 100 }, auth.token);
-
-        // Fetch admin users
         const adminsResult = await fetchAdminUsers(auth.token);
 
         setAdmins(Array.isArray(adminsResult) ? adminsResult : []);
@@ -260,8 +349,6 @@ function AdminDashboard({ auth }) {
           error: error.message || "Failed to load admin dashboard data.",
           success: "",
         });
-        setAdmins([]);
-        setEvents([]);
       } finally {
         setLoading(false);
       }
@@ -277,10 +364,8 @@ function AdminDashboard({ auth }) {
     completed: events.filter((event) => event.status === "Completed").length,
   };
 
-  // Rest of your AdminDashboard component remains the same...
   const handleCreateAdmin = async (event) => {
     event.preventDefault();
-
     try {
       const createdAdmin = await createAdminUser(createForm, auth.token);
       setAdmins((current) => [createdAdmin, ...current]);
@@ -306,15 +391,8 @@ function AdminDashboard({ auth }) {
 
   const handleUpdateAdmin = async (event) => {
     event.preventDefault();
-
-    const payload = {
-      name: editForm.name,
-      email: editForm.email,
-    };
-
-    if (editForm.password.trim()) {
-      payload.password = editForm.password;
-    }
+    const payload = { name: editForm.name, email: editForm.email };
+    if (editForm.password.trim()) payload.password = editForm.password;
 
     try {
       const updatedAdmin = await updateAdminUser(
@@ -346,309 +424,293 @@ function AdminDashboard({ auth }) {
         setEditAdminId("");
         setEditForm({ name: "", email: "", password: "" });
       }
-      setStatus({
-        error: "",
-        success: "Admin account removed successfully.",
-      });
+      setStatus({ error: "", success: "Admin account removed successfully." });
     } catch (error) {
       setStatus({ error: error.message, success: "" });
     }
   };
+
+  if (loading) {
+    return (
+      <AppShell
+        title="Admin Dashboard"
+        description="Loading admin workspace..."
+      >
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-[var(--accent)] border-t-transparent"></div>
+            <p className="mt-4 text-[var(--text-muted)]">
+              Loading dashboard...
+            </p>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell
       title="Admin Dashboard"
       description="Control the admin team, review event operations, and keep the platform organized from one command center."
     >
-      {loading ? (
-        <section className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px]">
-          <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-            Loading
+      {/* Stats Cards */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="rounded-2xl bg-gradient-to-br from-orange-50 to-amber-50 p-6 shadow-md">
+          <p className="text-sm uppercase tracking-wide text-[var(--accent-dark)]">
+            Admins
           </p>
-          <h3 className="mb-3 text-[1.05rem]">
-            Preparing the admin workspace...
-          </h3>
-        </section>
-      ) : (
-        <>
-          <section className="grid grid-cols-4 gap-4 max-[1100px]:grid-cols-2 max-[700px]:grid-cols-1">
-            <article className="rounded-[24px] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[var(--shadow)]">
-              <span className="text-[0.8rem] uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-                Admins
-              </span>
-              <strong className="mt-2 block text-3xl">{admins.length}</strong>
-              <p className="mt-2 text-[var(--text-muted)]">
-                Active admin accounts
-              </p>
-            </article>
-            <article className="rounded-[24px] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[var(--shadow)]">
-              <span className="text-[0.8rem] uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-                Events
-              </span>
-              <strong className="mt-2 block text-3xl">
-                {eventCounts.total}
-              </strong>
-              <p className="mt-2 text-[var(--text-muted)]">
-                Tracked event records
-              </p>
-            </article>
-            <article className="rounded-[24px] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[var(--shadow)]">
-              <span className="text-[0.8rem] uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-                Active
-              </span>
-              <strong className="mt-2 block text-3xl">
-                {eventCounts.active}
-              </strong>
-              <p className="mt-2 text-[var(--text-muted)]">
-                Currently bookable events
-              </p>
-            </article>
-            <article className="rounded-[24px] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[var(--shadow)]">
-              <span className="text-[0.8rem] uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-                Interrupted
-              </span>
-              <strong className="mt-2 block text-3xl">
-                {eventCounts.cancelled + eventCounts.completed}
-              </strong>
-              <p className="mt-2 text-[var(--text-muted)]">
-                Cancelled or completed events
-              </p>
-            </article>
-          </section>
+          <strong className="mt-2 block text-4xl font-bold text-[var(--accent)]">
+            {admins.length}
+          </strong>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">
+            Active admin accounts
+          </p>
+        </div>
+        <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-sky-50 p-6 shadow-md">
+          <p className="text-sm uppercase tracking-wide text-blue-600">
+            Total Events
+          </p>
+          <strong className="mt-2 block text-4xl font-bold text-blue-600">
+            {eventCounts.total}
+          </strong>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">
+            Tracked event records
+          </p>
+        </div>
+        <div className="rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 p-6 shadow-md">
+          <p className="text-sm uppercase tracking-wide text-green-600">
+            Active Events
+          </p>
+          <strong className="mt-2 block text-4xl font-bold text-green-600">
+            {eventCounts.active}
+          </strong>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">
+            Currently bookable
+          </p>
+        </div>
+        <div className="rounded-2xl bg-gradient-to-br from-gray-50 to-slate-50 p-6 shadow-md">
+          <p className="text-sm uppercase tracking-wide text-gray-600">
+            Completed/Cancelled
+          </p>
+          <strong className="mt-2 block text-4xl font-bold text-gray-600">
+            {eventCounts.cancelled + eventCounts.completed}
+          </strong>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">Past events</p>
+        </div>
+      </section>
 
-          {status.error ? (
-            <p className="mt-6 rounded-2xl border border-[rgba(182,61,61,0.18)] bg-[rgba(182,61,61,0.08)] px-4 py-[0.9rem] text-[var(--danger)]">
-              {status.error}
-            </p>
-          ) : null}
-          {status.success ? (
-            <p className="mt-6 rounded-2xl border border-[rgba(47,125,83,0.18)] bg-[rgba(47,125,83,0.08)] px-4 py-[0.9rem] text-[var(--success)]">
-              {status.success}
-            </p>
-          ) : null}
+      {status.error && (
+        <div className="mt-6 rounded-2xl bg-red-50 border border-red-200 p-4">
+          <p className="text-red-700">⚠️ {status.error}</p>
+        </div>
+      )}
+      {status.success && (
+        <div className="mt-6 rounded-2xl bg-green-50 border border-green-200 p-4">
+          <p className="text-green-700">✓ {status.success}</p>
+        </div>
+      )}
 
-          <section className="mt-6 grid grid-cols-2 gap-6 max-[1100px]:grid-cols-1">
-            <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)]">
-              <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-                Create Admin
-              </p>
-              <h3 className="mb-4 text-[1.05rem]">Add a new administrator</h3>
-              <form className="grid gap-4" onSubmit={handleCreateAdmin}>
-                <input
-                  className="w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none"
-                  placeholder="Admin name"
-                  required
-                  type="text"
-                  value={createForm.name}
-                  onChange={(event) =>
-                    setCreateForm((current) => ({
-                      ...current,
-                      name: event.target.value,
-                    }))
-                  }
-                />
-                <input
-                  className="w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none"
-                  placeholder="admin@eventbooking.com"
-                  required
-                  type="email"
-                  value={createForm.email}
-                  onChange={(event) =>
-                    setCreateForm((current) => ({
-                      ...current,
-                      email: event.target.value,
-                    }))
-                  }
-                />
-                <input
-                  className="w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none"
-                  placeholder="Temporary password"
-                  required
-                  type="password"
-                  value={createForm.password}
-                  onChange={(event) =>
-                    setCreateForm((current) => ({
-                      ...current,
-                      password: event.target.value,
-                    }))
-                  }
-                />
+      {/* Admin Management */}
+      <section className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="rounded-2xl border border-[var(--border)] bg-white p-6 shadow-md">
+          <h3 className="mb-4 text-lg font-semibold">➕ Create New Admin</h3>
+          <form className="space-y-4" onSubmit={handleCreateAdmin}>
+            <input
+              className="w-full rounded-xl border border-[rgba(54,45,32,0.16)] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              placeholder="Admin name"
+              required
+              type="text"
+              value={createForm.name}
+              onChange={(e) =>
+                setCreateForm({ ...createForm, name: e.target.value })
+              }
+            />
+            <input
+              className="w-full rounded-xl border border-[rgba(54,45,32,0.16)] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              placeholder="admin@eventbooking.com"
+              required
+              type="email"
+              value={createForm.email}
+              onChange={(e) =>
+                setCreateForm({ ...createForm, email: e.target.value })
+              }
+            />
+            <input
+              className="w-full rounded-xl border border-[rgba(54,45,32,0.16)] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              placeholder="Temporary password"
+              required
+              type="password"
+              value={createForm.password}
+              onChange={(e) =>
+                setCreateForm({ ...createForm, password: e.target.value })
+              }
+            />
+            <button
+              className="w-full rounded-full bg-gradient-to-r from-[var(--accent)] to-[#d7834d] px-6 py-3 text-white font-semibold shadow-md hover:shadow-lg transition-all"
+              type="submit"
+            >
+              Create Admin Account
+            </button>
+          </form>
+        </div>
+
+        <div className="rounded-2xl border border-[var(--border)] bg-white p-6 shadow-md">
+          <h3 className="mb-4 text-lg font-semibold">✏️ Update Admin</h3>
+          {editAdminId ? (
+            <form className="space-y-4" onSubmit={handleUpdateAdmin}>
+              <input
+                className="w-full rounded-xl border border-[rgba(54,45,32,0.16)] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                required
+                type="text"
+                value={editForm.name}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, name: e.target.value })
+                }
+              />
+              <input
+                className="w-full rounded-xl border border-[rgba(54,45,32,0.16)] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                required
+                type="email"
+                value={editForm.email}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, email: e.target.value })
+                }
+              />
+              <input
+                className="w-full rounded-xl border border-[rgba(54,45,32,0.16)] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                placeholder="Leave blank to keep current password"
+                type="password"
+                value={editForm.password}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, password: e.target.value })
+                }
+              />
+              <div className="flex gap-3">
                 <button
-                  className="w-full cursor-pointer rounded-full border-0 bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] px-[1.35rem] py-[0.95rem] text-white shadow-[0_12px_26px_rgba(192,90,43,0.28)]"
+                  className="flex-1 rounded-full bg-gradient-to-r from-[var(--accent)] to-[#d7834d] px-6 py-3 text-white font-semibold"
                   type="submit"
                 >
-                  Create Admin
+                  Save Changes
                 </button>
-              </form>
-            </article>
-
-            <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)]">
-              <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-                Update Admin
-              </p>
-              <h3 className="mb-4 text-[1.05rem]">
-                Edit selected admin credentials
-              </h3>
-              {editAdminId ? (
-                <form className="grid gap-4" onSubmit={handleUpdateAdmin}>
-                  <input
-                    className="w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none"
-                    required
-                    type="text"
-                    value={editForm.name}
-                    onChange={(event) =>
-                      setEditForm((current) => ({
-                        ...current,
-                        name: event.target.value,
-                      }))
-                    }
-                  />
-                  <input
-                    className="w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none"
-                    required
-                    type="email"
-                    value={editForm.email}
-                    onChange={(event) =>
-                      setEditForm((current) => ({
-                        ...current,
-                        email: event.target.value,
-                      }))
-                    }
-                  />
-                  <input
-                    className="w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none"
-                    placeholder="Leave blank to keep current password"
-                    type="password"
-                    value={editForm.password}
-                    onChange={(event) =>
-                      setEditForm((current) => ({
-                        ...current,
-                        password: event.target.value,
-                      }))
-                    }
-                  />
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      className="cursor-pointer rounded-full border-0 bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] px-[1.35rem] py-[0.95rem] text-white"
-                      type="submit"
-                    >
-                      Save Admin
-                    </button>
-                    <button
-                      className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)]"
-                      type="button"
-                      onClick={() => {
-                        setEditAdminId("");
-                        setEditForm({ name: "", email: "", password: "" });
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <p className="leading-[1.7] text-[var(--text-muted)]">
-                  Select an admin from the team list below to update their name,
-                  email, or password.
-                </p>
-              )}
-            </article>
-          </section>
-
-          <section className="mt-6 rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)]">
-            <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-              Admin Team
-            </p>
-            <h3 className="mb-4 text-[1.05rem]">Manage administrator access</h3>
-            <div className="grid gap-4">
-              {admins.map((admin) => (
-                <article
-                  className="flex flex-wrap items-center gap-4 rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.68)] p-4"
-                  key={admin._id}
+                <button
+                  className="flex-1 rounded-full border border-gray-300 bg-white px-6 py-3 text-gray-700 font-semibold hover:bg-gray-50"
+                  type="button"
+                  onClick={() => {
+                    setEditAdminId("");
+                    setEditForm({ name: "", email: "", password: "" });
+                  }}
                 >
-                  <div>
-                    <strong className="block text-[1rem]">{admin.name}</strong>
-                    <span className="text-[var(--text-muted)]">
-                      {admin.email}
-                    </span>
-                  </div>
-                  <span className="ml-auto inline-flex rounded-full bg-[rgba(33,83,79,0.12)] px-3 py-2 text-[0.82rem] font-bold text-[var(--secondary)]">
-                    {admin.role}
-                  </span>
-                  <button
-                    className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-4 py-2 text-[var(--secondary)]"
-                    type="button"
-                    onClick={() => startEditingAdmin(admin)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className="cursor-pointer rounded-full border-0 bg-[linear-gradient(135deg,#b63d3d_0%,#d45a5a_100%)] px-4 py-2 text-white"
-                    type="button"
-                    onClick={() => handleDeleteAdmin(admin._id)}
-                  >
-                    Remove
-                  </button>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section className="mt-6 rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)]">
-            <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-              Event Status
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <p className="text-center text-[var(--text-muted)] py-8">
+              Select an admin from the list below to edit their credentials
             </p>
-            <h3 className="mb-4 text-[1.05rem]">
-              Live event details and health
-            </h3>
-            <div className="grid gap-4">
-              {events.length === 0 ? (
-                <p className="text-[var(--text-muted)]">
-                  No events are available from the event service yet.
-                </p>
-              ) : (
-                events.map((event) => (
-                  <article
-                    className="grid grid-cols-[1.4fr_0.9fr_0.8fr_0.8fr] gap-4 rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.68)] p-4 max-[900px]:grid-cols-1"
-                    key={event._id}
-                  >
-                    <div>
-                      <strong className="block text-[1rem]">
-                        {event.name}
-                      </strong>
-                      <p className="mt-1 text-[var(--text-muted)]">
-                        {event.venue} | {new Date(event.date).toLocaleString()}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="block text-[0.82rem] uppercase tracking-[0.18em] text-[var(--text-muted)]">
-                        Status
-                      </span>
-                      <strong>{event.status}</strong>
-                    </div>
-                    <div>
-                      <span className="block text-[0.82rem] uppercase tracking-[0.18em] text-[var(--text-muted)]">
-                        Seats
-                      </span>
-                      <strong>
-                        {event.availableSeats}/{event.totalSeats}
-                      </strong>
-                    </div>
-                    <div>
-                      <span className="block text-[0.82rem] uppercase tracking-[0.18em] text-[var(--text-muted)]">
-                        Price
-                      </span>
-                      <strong>
-                        LKR {Number(event.ticketPrice || 0).toLocaleString()}
-                      </strong>
-                    </div>
-                  </article>
-                ))
-              )}
+          )}
+        </div>
+      </section>
+
+      {/* Admin Team List */}
+      <section className="mt-6 rounded-2xl border border-[var(--border)] bg-white p-6 shadow-md">
+        <h3 className="mb-4 text-lg font-semibold">👥 Admin Team</h3>
+        <div className="space-y-3">
+          {admins.map((admin) => (
+            <div
+              className="flex flex-wrap items-center gap-4 rounded-xl border border-[rgba(54,45,32,0.08)] bg-gray-50 p-4"
+              key={admin._id}
+            >
+              <div className="flex-1">
+                <strong className="block text-lg">{admin.name}</strong>
+                <span className="text-sm text-[var(--text-muted)]">
+                  {admin.email}
+                </span>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-[rgba(33,83,79,0.12)] text-sm font-semibold text-[var(--secondary)]">
+                {admin.role}
+              </span>
+              <button
+                className="px-4 py-2 rounded-full border border-[rgba(33,83,79,0.3)] text-[var(--secondary)] hover:bg-[rgba(33,83,79,0.05)] transition-all"
+                onClick={() => startEditingAdmin(admin)}
+              >
+                Edit
+              </button>
+              <button
+                className="px-4 py-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-all"
+                onClick={() => handleDeleteAdmin(admin._id)}
+              >
+                Remove
+              </button>
             </div>
-          </section>
-        </>
-      )}
+          ))}
+        </div>
+      </section>
+
+      {/* Events List */}
+      <section className="mt-6 rounded-2xl border border-[var(--border)] bg-white p-6 shadow-md">
+        <h3 className="mb-4 text-lg font-semibold">🎪 Event Status Overview</h3>
+        <div className="space-y-3 max-h-[500px] overflow-y-auto">
+          {events.length === 0 ? (
+            <p className="text-center text-[var(--text-muted)] py-8">
+              No events available
+            </p>
+          ) : (
+            events.map((event) => (
+              <div
+                className="flex flex-wrap items-center gap-4 rounded-xl border border-[rgba(54,45,32,0.08)] bg-gray-50 p-4"
+                key={event._id}
+              >
+                <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+                  <img
+                    src={event.images?.[0]?.url || "/placeholder-event.jpg"}
+                    alt={event.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = "/placeholder-event.jpg";
+                    }}
+                  />
+                </div>
+                <div className="flex-1">
+                  <strong className="block">{event.name}</strong>
+                  <p className="text-sm text-[var(--text-muted)]">
+                    {event.venue}
+                  </p>
+                </div>
+                <div>
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                      event.status === "Active"
+                        ? "bg-green-100 text-green-700"
+                        : event.status === "Completed"
+                          ? "bg-gray-100 text-gray-700"
+                          : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {event.status}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm text-[var(--text-muted)]">
+                    Seats
+                  </span>
+                  <p className="font-semibold">
+                    {event.availableSeats}/{event.totalSeats}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm text-[var(--text-muted)]">
+                    Price
+                  </span>
+                  <p className="font-semibold text-[var(--accent)]">
+                    {formatPrice(event.ticketPrice)}
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
     </AppShell>
   );
 }
