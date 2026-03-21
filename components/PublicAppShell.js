@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getAuth } from "@/lib/auth";
+import { getAuth, isAdmin } from "@/lib/auth";
 
 export default function PublicAppShell({ title, description, children }) {
   const router = useRouter();
@@ -12,6 +12,8 @@ export default function PublicAppShell({ title, description, children }) {
   useEffect(() => {
     setAuth(getAuth());
   }, []);
+
+  const isUserAdmin = auth ? isAdmin(auth) : false;
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
@@ -34,10 +36,10 @@ export default function PublicAppShell({ title, description, children }) {
             {auth?.token ? (
               <>
                 <Link
-                  href="/explore"
+                  href={isUserAdmin ? "/admin/events" : "/explore"}
                   className="text-[var(--text-main)] transition-colors hover:text-[var(--accent)]"
                 >
-                  Browse Events
+                  Events
                 </Link>
                 <Link
                   href="/dashboard"
@@ -48,10 +50,10 @@ export default function PublicAppShell({ title, description, children }) {
               </>
             ) : (
               <Link
-                href="/explore"
+                href="/"
                 className="text-[var(--text-main)] transition-colors hover:text-[var(--accent)]"
               >
-                Browse Events
+                Home
               </Link>
             )}
 

@@ -50,7 +50,7 @@ export default function LoginPromptModal({ isOpen, eventTitle, onCancel }) {
             Continue Browsing
           </button>
           <Link
-            href="/auth"
+            href="/auth?redirect=/explore"
             className="cursor-pointer rounded-full border-0 bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] px-[1.35rem] py-[0.95rem] text-center text-white shadow-[0_12px_26px_rgba(192,90,43,0.28)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
           >
             Sign In / Register
