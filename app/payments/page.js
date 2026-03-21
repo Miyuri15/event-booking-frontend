@@ -2,7 +2,7 @@
 
 import AppShell from "@/components/AppShell";
 import AuthGuard from "@/components/AuthGuard";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { fetchEventById, fetchMyBookings } from "@/lib/api";
@@ -77,6 +77,29 @@ const getBookingTicketCount = (booking) => {
 };
 
 export default function PaymentsPage() {
+  return (
+    <Suspense fallback={<PaymentsPageFallback />}>
+      <PaymentsPageContent />
+    </Suspense>
+  );
+}
+
+function PaymentsPageFallback() {
+  return (
+    <AuthGuard>
+      <AppShell
+        title="Payments"
+        description="Handle checkout, saved payment methods, and transaction visibility in a dedicated payment portal."
+      >
+        <section className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px]">
+          <p className="text-[var(--text-muted)]">Loading payments...</p>
+        </section>
+      </AppShell>
+    </AuthGuard>
+  );
+}
+
+function PaymentsPageContent() {
   const searchParams = useSearchParams();
   const [auth, setAuth] = useState(null);
   const [selectedMethod, setSelectedMethod] = useState(paymentMethods[0].label);
