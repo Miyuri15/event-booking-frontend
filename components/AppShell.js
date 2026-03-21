@@ -12,7 +12,11 @@ const navigationItems = [
   { href: "/explore", label: "Events", caption: "Browse and manage events" },
   { href: "/bookings", label: "Bookings", caption: "Reservations" },
   { href: "/payments", label: "Payments", caption: "Wallet and checkout" },
-  { href: "/notifications", label: "Notifications", caption: "Alerts and updates" },
+  {
+    href: "/notifications",
+    label: "Notifications",
+    caption: "Alerts and updates",
+  },
   { href: "/account", label: "Account", caption: "Profile settings" },
 ];
 
@@ -91,6 +95,29 @@ export default function AppShell({ title, description, children }) {
     router.push("/auth");
   };
 
+  const isUserAdmin = auth ? isAdmin(auth) : false;
+
+  // Create navigation items based on user role
+  const getNavigationItems = () => {
+    if (isUserAdmin) {
+      // For admin, replace the Events link to point to admin page
+      return navigationItems.map((item) => {
+        if (item.href === "/explore") {
+          return {
+            ...item,
+            href: "/admin/events",
+            label: "Events",
+            caption: "Create, edit, and manage events",
+          };
+        }
+        return item;
+      });
+    }
+    return navigationItems;
+  };
+
+  const currentNavigationItems = getNavigationItems();
+
   return (
     <>
       <div className="grid h-screen grid-cols-[300px_1fr] overflow-hidden max-[900px]:h-auto max-[900px]:grid-cols-1 max-[900px]:overflow-visible">
@@ -99,12 +126,13 @@ export default function AppShell({ title, description, children }) {
             <p className="eyebrow">Event Booking</p>
             <h1 className="sidebar-title">Luma Events</h1>
             <p className="sidebar-copy">
-              Discover standout experiences and manage your bookings in one place.
+              Discover standout experiences and manage your bookings in one
+              place.
             </p>
           </div>
 
           <nav className="nav-list">
-            {navigationItems.map((item) => {
+            {currentNavigationItems.map((item) => {
               const isActive = pathname === item.href;
 
               return (
@@ -124,9 +152,11 @@ export default function AppShell({ title, description, children }) {
             {auth?.user ? (
               <>
                 <p className="footer-label">Signed in as</p>
-                <p className="footer-name">{auth.user.name || auth.user.email}</p>
+                <p className="footer-name">
+                  {auth.user.name || auth.user.email}
+                </p>
                 <p className="text-[0.78rem] uppercase tracking-[0.18em] text-[rgba(246,239,228,0.72)]">
-                  {isAdmin(auth) ? "Admin" : "User"}
+                  {isUserAdmin ? "Admin" : "User"}
                 </p>
                 <button
                   className="secondary-button sidebar-button"
@@ -152,7 +182,9 @@ export default function AppShell({ title, description, children }) {
             <div>
               <p className="eyebrow">Event Booking Platform</p>
               <h2 className="workspace-title">{title}</h2>
-              <p className="section-copy workspace-description">{description}</p>
+              <p className="section-copy workspace-description">
+                {description}
+              </p>
             </div>
             <div className="header-actions">
               <Link

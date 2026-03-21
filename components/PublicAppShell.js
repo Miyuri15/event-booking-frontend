@@ -13,6 +13,8 @@ export default function PublicAppShell({ title, description, children }) {
     setAuth(getAuth());
   }, []);
 
+  const isUserAdmin = auth ? isAdmin(auth) : false;
+
   return (
     <div className="min-h-screen bg-[var(--background)]">
       {/* Header */}
@@ -34,10 +36,10 @@ export default function PublicAppShell({ title, description, children }) {
             {auth?.token ? (
               <>
                 <Link
-                  href="/explore"
+                  href={isUserAdmin ? "/admin/events" : "/explore"}
                   className="text-[var(--text-main)] transition-colors hover:text-[var(--accent)]"
                 >
-                  {isAdmin(auth) ? "Manage Events" : "Browse Events"}
+                  Events
                 </Link>
                 <Link
                   href="/dashboard"
