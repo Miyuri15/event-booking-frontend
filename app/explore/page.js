@@ -1,65 +1,25 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
 import AuthGuard from "@/components/AuthGuard";
-import { createEvent, fetchEvents } from "@/lib/api"; // Only import fetchEvents, not fetchUserEvents
+import { fetchEvents } from "@/lib/api";
 import { getAuth, isAdmin } from "@/lib/auth";
-import { useEffect, useMemo, useState } from "react";
 
-const fallbackEvents = [
-  {
-    _id: "demo-1",
-    name: "Pulse Arena Live",
-    description:
-      "A stadium-scale electronic show with immersive visuals and premium floor access.",
-    category: "Concert",
-    venue: "Colombo Arena",
-    date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString(),
-    ticketPrice: 7500,
-    availableSeats: 320,
-    totalSeats: 500,
-    status: "Active",
-    createdBy: "demo-user",
-    images: [],
-  },
-  {
-    _id: "demo-2",
-    name: "Future of Product Asia",
-    description:
-      "A one-day summit for founders, designers, and builders shaping digital products.",
-    category: "Conference",
-    venue: "Hilton Colombo",
-    date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 21).toISOString(),
-    ticketPrice: 12000,
-    availableSeats: 140,
-    totalSeats: 240,
-    status: "Active",
-    createdBy: "demo-user",
-    images: [],
-  },
-  {
-    _id: "demo-3",
-    name: "Lanterns and Jazz Evening",
-    description:
-      "A premium city-night gathering with live jazz, warm dining, and garden seating.",
-    category: "Other",
-    venue: "Independence Arcade",
-    date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 28).toISOString(),
-    ticketPrice: 5400,
-    availableSeats: 0,
-    totalSeats: 180,
-    status: "Completed",
-    createdBy: "demo-user",
-    images: [],
-  },
-];
+const ITEMS_PER_PAGE = 10;
 
 function formatPrice(value) {
   return `LKR ${Number(value || 0).toLocaleString()}`;
 }
 
 function formatEventDate(value) {
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function EventsHero({ adminMode, eventCount, activeCount }) {
@@ -100,96 +60,213 @@ function EventsHero({ adminMode, eventCount, activeCount }) {
   );
 }
 
+function CategoryFilter({ categories, selectedCategory, onCategoryChange }) {
+  return (
+    <div className="flex flex-wrap gap-2 mb-6">
+      <button
+        onClick={() => onCategoryChange("")}
+        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+          selectedCategory === ""
+            ? "bg-[var(--accent)] text-white shadow-md"
+            : "bg-[rgba(192,90,43,0.1)] text-[var(--accent-dark)] hover:bg-[rgba(192,90,43,0.2)]"
+        }`}
+      >
+        All Events
+      </button>
+      {categories.map((category) => (
+        <button
+          key={category}
+          onClick={() => onCategoryChange(category)}
+          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+            selectedCategory === category
+              ? "bg-[var(--accent)] text-white shadow-md"
+              : "bg-[rgba(192,90,43,0.1)] text-[var(--accent-dark)] hover:bg-[rgba(192,90,43,0.2)]"
+          }`}
+        >
+          {category}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function EventCard({ event, adminMode, onSelect }) {
   const isReserveDisabled =
     event.status !== "Active" || Number(event.availableSeats) <= 0;
+  const eventImage = event.images?.[0]?.url || "/placeholder-event.jpg";
 
   return (
-    <article className="flex min-h-[300px] flex-col rounded-[24px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.78)] p-[1.2rem] shadow-[0_16px_35px_rgba(50,38,22,0.06)]">
-      <div className="mb-[0.9rem] flex flex-wrap items-center justify-between gap-3">
-        <span className="inline-flex w-fit rounded-full bg-[rgba(192,90,43,0.11)] px-3 py-[0.4rem] text-[0.82rem] font-bold text-[var(--accent-dark)]">
-          {event.category || "Event"}
-        </span>
-        <span className="inline-flex rounded-full bg-[rgba(33,83,79,0.12)] px-3 py-[0.4rem] text-[0.82rem] font-bold text-[var(--secondary)]">
-          {event.status}
-        </span>
-      </div>
-
-      <h4 className="mb-2 text-[1.15rem]">{event.name}</h4>
-      <p className="leading-[1.7] text-[var(--text-muted)] line-clamp-3">
-        {event.description}
-      </p>
-
-      <div className="mt-4 grid grid-cols-2 gap-3 text-[var(--text-muted)] max-[560px]:grid-cols-1">
-        <div>
-          <span className="block text-[0.8rem] uppercase tracking-[0.16em]">
-            Venue
+    <article className="group flex flex-col rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-white overflow-hidden shadow-[0_8px_20px_rgba(50,38,22,0.06)] transition-all duration-300 hover:shadow-[0_16px_35px_rgba(50,38,22,0.12)] hover:-translate-y-1">
+      {/* Event Image */}
+      <div className="relative h-48 overflow-hidden bg-gray-100">
+        <img
+          src={eventImage}
+          alt={event.name}
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          onError={(e) => {
+            e.target.src = "/placeholder-event.jpg";
+          }}
+        />
+        <div className="absolute top-3 right-3">
+          <span
+            className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
+              event.status === "Active"
+                ? "bg-green-500 text-white"
+                : event.status === "Completed"
+                  ? "bg-gray-500 text-white"
+                  : "bg-red-500 text-white"
+            }`}
+          >
+            {event.status}
           </span>
-          <strong className="text-[var(--text-main)]">{event.venue}</strong>
-        </div>
-        <div>
-          <span className="block text-[0.8rem] uppercase tracking-[0.16em]">
-            Date
-          </span>
-          <strong className="text-[var(--text-main)]">
-            {formatEventDate(event.date)}
-          </strong>
-        </div>
-        <div>
-          <span className="block text-[0.8rem] uppercase tracking-[0.16em]">
-            Price
-          </span>
-          <strong className="text-[var(--text-main)]">
-            {formatPrice(event.ticketPrice)}
-          </strong>
-        </div>
-        <div>
-          <span className="block text-[0.8rem] uppercase tracking-[0.16em]">
-            Seats
-          </span>
-          <strong className="text-[var(--text-main)]">
-            {event.availableSeats}/{event.totalSeats}
-          </strong>
         </div>
       </div>
 
-      <div className="mt-auto flex items-center justify-between gap-4 pt-5">
-        {adminMode ? (
-          <>
-            <button
-              className="cursor-pointer rounded-full border-0 bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] px-[1.35rem] py-[0.95rem] text-white shadow-[0_12px_26px_rgba(192,90,43,0.28)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
-              type="button"
-              onClick={() => onSelect(event)}
+      {/* Event Content */}
+      <div className="p-4 flex-1 flex flex-col">
+        <div className="mb-2">
+          <span className="inline-flex rounded-full bg-[rgba(192,90,43,0.11)] px-2.5 py-1 text-xs font-bold text-[var(--accent-dark)]">
+            {event.category || "Event"}
+          </span>
+        </div>
+
+        <h4 className="mb-2 text-lg font-bold line-clamp-2">{event.name}</h4>
+        <p className="text-sm text-[var(--text-muted)] line-clamp-2 mb-3">
+          {event.description}
+        </p>
+
+        <div className="space-y-2 mt-auto">
+          <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              Edit Event
-            </button>
-            <button
-              className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
-              type="button"
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+            <span className="truncate">{event.venue}</span>
+          </div>
+
+          <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              Review Status
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              className="cursor-pointer rounded-full border-0 bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] px-[1.35rem] py-[0.95rem] text-white shadow-[0_12px_26px_rgba(192,90,43,0.28)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={isReserveDisabled}
-              type="button"
-            >
-              {isReserveDisabled ? "Unavailable" : "Reserve Seat"}
-            </button>
-            <button
-              className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
-              type="button"
-              onClick={() => onSelect(event)}
-            >
-              See Details
-            </button>
-          </>
-        )}
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+            <span>{formatEventDate(event.date)}</span>
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            <div>
+              <span className="text-2xl font-bold text-[var(--accent)]">
+                {formatPrice(event.ticketPrice)}
+              </span>
+            </div>
+            <div className="text-right">
+              <span className="text-xs text-[var(--text-muted)]">Seats</span>
+              <p className="text-sm font-semibold">
+                {event.availableSeats}/{event.totalSeats}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 flex gap-2">
+          <button
+            className={`flex-1 cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition-all ${
+              isReserveDisabled
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                : "bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] text-white shadow-md hover:shadow-lg hover:-translate-y-px"
+            }`}
+            disabled={isReserveDisabled}
+            type="button"
+          >
+            {isReserveDisabled ? "Unavailable" : "Reserve"}
+          </button>
+          <button
+            className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-4 py-2 text-sm font-medium text-[var(--secondary)] transition-all hover:bg-[rgba(33,83,79,0.2)] hover:-translate-y-px"
+            type="button"
+            onClick={() => onSelect(event)}
+          >
+            Details
+          </button>
+        </div>
       </div>
     </article>
+  );
+}
+
+function Pagination({ currentPage, totalPages, onPageChange }) {
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
+
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex justify-center items-center gap-2 mt-8">
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="px-3 py-2 rounded-lg border border-[rgba(54,45,32,0.16)] bg-white text-[var(--text-main)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-all"
+      >
+        Previous
+      </button>
+
+      {getPageNumbers().map((page) => (
+        <button
+          key={page}
+          onClick={() => onPageChange(page)}
+          className={`px-3 py-2 rounded-lg transition-all ${
+            currentPage === page
+              ? "bg-[var(--accent)] text-white shadow-md"
+              : "border border-[rgba(54,45,32,0.16)] bg-white text-[var(--text-main)] hover:bg-gray-50"
+          }`}
+        >
+          {page}
+        </button>
+      ))}
+
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className="px-3 py-2 rounded-lg border border-[rgba(54,45,32,0.16)] bg-white text-[var(--text-main)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-all"
+      >
+        Next
+      </button>
+    </div>
   );
 }
 
@@ -197,76 +274,93 @@ export default function ExplorePage() {
   const [auth, setAuth] = useState(null);
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalEvents, setTotalEvents] = useState(0);
   const [status, setStatus] = useState({
     loading: true,
     error: "",
-    source: "service",
   });
 
-  // Updated to match backend event model
-  const [createForm, setCreateForm] = useState({
-    name: "",
-    description: "",
-    venue: "",
-    date: "",
-    totalSeats: "",
-    ticketPrice: "",
-    category: "Other",
-    // Note: availableSeats is automatically set by backend, status defaults to "Active"
-  });
+  // Extract unique categories from events
+  const categories = useMemo(() => {
+    const uniqueCategories = new Set(
+      events.map((event) => event.category).filter(Boolean),
+    );
+    return Array.from(uniqueCategories).sort();
+  }, [events]);
 
   useEffect(() => {
     setAuth(getAuth());
   }, []);
 
   useEffect(() => {
-    if (!auth?.token) {
-      setStatus((prev) => ({ ...prev, loading: false }));
-      return;
-    }
-
     const loadEvents = async () => {
-      try {
-        // Fetch active events by default
-        const response = await fetchEvents({ status: "Active" }, auth.token);
-        // The API returns { data: [...], pagination: {...} }
-        console.log("Fetched events response:", response);
-        const eventsData = response || [];
+      if (!auth?.token) {
+        setStatus((prev) => ({ ...prev, loading: false }));
+        return;
+      }
 
-        if (eventsData.length > 0) {
-          setEvents(eventsData);
-          setSelectedEvent(eventsData[0]);
-          setStatus({
-            loading: false,
-            error: "",
-            source: "service",
-          });
-        } else {
-          setEvents(fallbackEvents);
-          setSelectedEvent(fallbackEvents[0]);
-          setStatus({
-            loading: false,
-            error: "No events found. Showing preview events.",
-            source: "fallback",
-          });
+      try {
+        setStatus({ loading: true, error: "" });
+
+        const params = {
+          status: "Active",
+          page: currentPage,
+          limit: ITEMS_PER_PAGE,
+        };
+
+        if (selectedCategory) {
+          params.category = selectedCategory;
         }
+
+        const response = await fetchEvents(params, auth.token);
+        console.log("Fetched events response:", response);
+
+        // Handle paginated response
+        let eventsData = [];
+        let paginationData = null;
+
+        if (response && response.data) {
+          eventsData = response.data;
+          paginationData = response.pagination;
+        } else if (Array.isArray(response)) {
+          eventsData = response;
+        } else if (response && response.events) {
+          eventsData = response.events;
+          paginationData = response.pagination;
+        } else {
+          eventsData = [];
+        }
+
+        setEvents(eventsData);
+
+        if (paginationData) {
+          setTotalPages(paginationData.pages || 1);
+          setTotalEvents(paginationData.total || 0);
+        } else {
+          setTotalPages(Math.ceil(eventsData.length / ITEMS_PER_PAGE));
+          setTotalEvents(eventsData.length);
+        }
+
+        if (eventsData.length > 0 && !selectedEvent) {
+          setSelectedEvent(eventsData[0]);
+        }
+
+        setStatus({ loading: false, error: "" });
       } catch (error) {
         console.error("Failed to load events:", error);
-        setEvents(fallbackEvents);
-        setSelectedEvent(fallbackEvents[0]);
+        setEvents([]);
         setStatus({
           loading: false,
-          error:
-            "Live event data is unavailable right now. Showing preview events.",
-          source: "fallback",
+          error: "Failed to load events. Please try again later.",
         });
       }
     };
 
     loadEvents();
-  }, [auth]);
+  }, [auth, currentPage, selectedCategory]);
 
   const adminMode = useMemo(() => isAdmin(auth), [auth]);
   const activeCount = useMemo(
@@ -274,108 +368,14 @@ export default function ExplorePage() {
     [events],
   );
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleCategoryChange = (category) => {
+    setSelectedCategory(category);
+    setCurrentPage(1); // Reset to first page when changing category
   };
 
-  const validateEventDate = (dateString) => {
-    const selectedDate = new Date(dateString);
-    const now = new Date();
-    return selectedDate > now;
-  };
-
-  const handleCreateEvent = async (event) => {
-    event.preventDefault();
-
-    // Get token from auth - no need to clean here as we'll clean in api.js
-    const token = auth?.token;
-
-    if (!token) {
-      setStatus((prev) => ({
-        ...prev,
-        error: "You must be logged in to create an event",
-      }));
-      return;
-    }
-
-    // Validate date is in future
-    if (!validateEventDate(createForm.date)) {
-      setStatus((prev) => ({
-        ...prev,
-        error: "Event date must be in the future",
-      }));
-      return;
-    }
-
-    // Prepare payload matching backend model
-    const payload = {
-      name: createForm.name,
-      description: createForm.description,
-      venue: createForm.venue,
-      date: new Date(createForm.date).toISOString(),
-      totalSeats: Number(createForm.totalSeats),
-      ticketPrice: Number(createForm.ticketPrice),
-      category: createForm.category,
-      createdBy: auth?.user?.id || auth?.user?._id,
-    };
-
-    // Add image if selected
-    if (imageFile) {
-      payload.images = imageFile;
-    }
-
-    try {
-      setStatus((prev) => ({ ...prev, loading: true, error: "" }));
-
-      const createdEvent = await createEvent(payload, token);
-
-      // Add created event to list
-      setEvents((current) => [createdEvent, ...current]);
-      setSelectedEvent(createdEvent);
-
-      // Reset form
-      setCreateForm({
-        name: "",
-        description: "",
-        venue: "",
-        date: "",
-        totalSeats: "",
-        ticketPrice: "",
-        category: "Other",
-      });
-      setImageFile(null);
-      setImagePreview(null);
-
-      setStatus({
-        loading: false,
-        error: "",
-        source: "service",
-      });
-
-      // Reload events to get the latest list
-      const response = await fetchEvents({ status: "Active" }, auth.token);
-      const eventsData = response?.data || [];
-      if (eventsData.length > 0) {
-        setEvents(eventsData);
-        setSelectedEvent(createdEvent);
-      }
-    } catch (error) {
-      console.error("Create event error:", error);
-      setStatus((current) => ({
-        ...current,
-        loading: false,
-        error:
-          error.message || "Failed to create event. Please check all fields.",
-      }));
-    }
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -401,199 +401,61 @@ export default function ExplorePage() {
           <>
             <EventsHero
               adminMode={adminMode}
-              eventCount={events.length}
+              eventCount={totalEvents}
               activeCount={activeCount}
             />
 
-            {status.error ? (
+            {status.error && (
               <p className="mt-6 rounded-2xl border border-[rgba(192,90,43,0.16)] bg-[rgba(192,90,43,0.08)] px-4 py-[0.9rem] text-[var(--accent-dark)]">
                 {status.error}
               </p>
-            ) : null}
+            )}
 
-            {adminMode ? (
-              <section className="mt-6 rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px]">
-                <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-                  Create Event
-                </p>
-                <h3 className="mb-4 text-[1.1rem]">
-                  Publish a new event listing
-                </h3>
-                <form
-                  className="grid grid-cols-2 gap-4 max-[900px]:grid-cols-1"
-                  onSubmit={handleCreateEvent}
-                >
-                  <input
-                    className="w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none"
-                    placeholder="Event name *"
-                    required
-                    type="text"
-                    value={createForm.name}
-                    onChange={(event) =>
-                      setCreateForm((current) => ({
-                        ...current,
-                        name: event.target.value,
-                      }))
-                    }
-                  />
-
-                  <input
-                    className="w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none"
-                    placeholder="Venue *"
-                    required
-                    type="text"
-                    value={createForm.venue}
-                    onChange={(event) =>
-                      setCreateForm((current) => ({
-                        ...current,
-                        venue: event.target.value,
-                      }))
-                    }
-                  />
-
-                  <textarea
-                    className="col-span-2 min-h-32 w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none max-[900px]:col-span-1"
-                    placeholder="Event description *"
-                    required
-                    value={createForm.description}
-                    onChange={(event) =>
-                      setCreateForm((current) => ({
-                        ...current,
-                        description: event.target.value,
-                      }))
-                    }
-                  />
-
-                  <input
-                    className="w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none"
-                    required
-                    type="datetime-local"
-                    min={new Date().toISOString().slice(0, 16)}
-                    value={createForm.date}
-                    onChange={(event) =>
-                      setCreateForm((current) => ({
-                        ...current,
-                        date: event.target.value,
-                      }))
-                    }
-                  />
-
-                  <select
-                    className="w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none"
-                    value={createForm.category}
-                    onChange={(event) =>
-                      setCreateForm((current) => ({
-                        ...current,
-                        category: event.target.value,
-                      }))
-                    }
-                  >
-                    <option value="Concert">Concert</option>
-                    <option value="Conference">Conference</option>
-                    <option value="Sports">Sports</option>
-                    <option value="Theater">Theater</option>
-                    <option value="Workshop">Workshop</option>
-                    <option value="Other">Other</option>
-                  </select>
-
-                  <input
-                    className="w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none"
-                    min="1"
-                    placeholder="Total seats *"
-                    required
-                    type="number"
-                    value={createForm.totalSeats}
-                    onChange={(event) =>
-                      setCreateForm((current) => ({
-                        ...current,
-                        totalSeats: event.target.value,
-                      }))
-                    }
-                  />
-
-                  <input
-                    className="w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none"
-                    min="0"
-                    step="0.01"
-                    placeholder="Ticket price (LKR) *"
-                    required
-                    type="number"
-                    value={createForm.ticketPrice}
-                    onChange={(event) =>
-                      setCreateForm((current) => ({
-                        ...current,
-                        ticketPrice: event.target.value,
-                      }))
-                    }
-                  />
-
-                  {/* Image Upload Field */}
-                  <div className="col-span-2">
-                    <label className="block mb-2 text-sm font-medium text-[var(--text-muted)]">
-                      Event Image (Optional)
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none"
-                    />
-                    {imagePreview && (
-                      <div className="mt-2">
-                        <img
-                          src={imagePreview}
-                          alt="Preview"
-                          className="w-32 h-32 object-cover rounded-lg"
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="col-span-2 flex justify-end gap-3 max-[900px]:col-span-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCreateForm({
-                          name: "",
-                          description: "",
-                          venue: "",
-                          date: "",
-                          totalSeats: "",
-                          ticketPrice: "",
-                          category: "Other",
-                        });
-                        setImageFile(null);
-                        setImagePreview(null);
-                      }}
-                      className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
-                    >
-                      Clear
-                    </button>
-                    <button
-                      className="cursor-pointer rounded-full border-0 bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] px-[1.35rem] py-[0.95rem] text-white shadow-[0_12px_26px_rgba(192,90,43,0.28)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px disabled:opacity-50 disabled:cursor-not-allowed"
-                      type="submit"
-                      disabled={status.loading}
-                    >
-                      {status.loading ? "Creating..." : "Create Event"}
-                    </button>
-                  </div>
-                </form>
-              </section>
-            ) : null}
-
-            <section className="mt-6 grid grid-cols-[1.35fr_0.65fr] gap-6 max-[1100px]:grid-cols-1">
-              <div className="grid grid-cols-2 gap-4 max-[900px]:grid-cols-1">
-                {events.map((event) => (
-                  <EventCard
-                    key={event._id}
-                    adminMode={adminMode}
-                    event={event}
-                    onSelect={setSelectedEvent}
-                  />
-                ))}
+            {/* Category Filter */}
+            {categories.length > 0 && (
+              <div className="mt-6">
+                <CategoryFilter
+                  categories={categories}
+                  selectedCategory={selectedCategory}
+                  onCategoryChange={handleCategoryChange}
+                />
               </div>
+            )}
 
-              {/* <EventDetailPanel adminMode={adminMode} event={selectedEvent} /> */}
+            {/* Events Grid - 5 columns on desktop */}
+            <section className="mt-6">
+              {events.length === 0 ? (
+                <div className="text-center py-12 rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8">
+                  <p className="text-[var(--text-muted)]">No events found</p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+                    {events.map((event) => (
+                      <EventCard
+                        key={event._id}
+                        adminMode={adminMode}
+                        event={event}
+                        onSelect={setSelectedEvent}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Pagination */}
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                  />
+
+                  {/* Total events info */}
+                  <p className="text-center text-sm text-[var(--text-muted)] mt-4">
+                    Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} -{" "}
+                    {Math.min(currentPage * ITEMS_PER_PAGE, totalEvents)} of{" "}
+                    {totalEvents} events
+                  </p>
+                </>
+              )}
             </section>
           </>
         )}
