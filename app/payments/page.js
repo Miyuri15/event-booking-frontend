@@ -51,113 +51,40 @@ export default function PaymentsPage() {
     };
   }, [promoCode]);
 
-  const handleCheckout = async () => {
-    // Clear any previous errors
+const handleCheckout = async () => {
     setErrorMessage("");
-
-    console.log("🚀 Initiating checkout with:", {
-      pricing,
-      selectedMethod,
-      promoCode
-    });
-
     setCheckoutState("processing");
 
     try {
-      // Get user ID from auth context instead of API call
-      console.log("👤 User from context:", user);
-
       const userId = user?.id || user?.userId || user?._id;
-
-      if (!userId) {
-        console.error("No user ID in context:", user);
-        throw new Error("User not authenticated. Please log in again.");
-      }
-
-      console.log("✅ User ID from context:", userId);
-
-      // Read token from normalized auth object (stored by getAuth/saveAuth)
       const token = auth?.token || null;
+      if (!userId || !token) throw new Error("Auth failed.");
 
-      if (!token) {
-        throw new Error("No authentication token found. Please log in again.");
-      }
-
-      // Fetch PENDING bookings for the user
-      console.log(`📦 Fetching PENDING bookings for user: ${userId}`);
       const bookingsData = await fetchPendingBookings(userId, token);
-      console.log("✅ Pending bookings received:", bookingsData);
+      const tickets = Array.isArray(bookingsData) ? bookingsData : (bookingsData.data || []);
 
-      // Handle different response structures for bookings
-      // The API might return data in different formats
-      const tickets = Array.isArray(bookingsData)
-        ? bookingsData
-        : bookingsData.data || bookingsData.bookings || [];
+      if (!tickets.length) throw new Error("Nothing to pay for.");
 
-      if (!tickets.length) {
-        console.log("⚠️ No pending bookings found");
-        setErrorMessage("No pending bookings to process. Please add tickets to your cart first.");
-        setCheckoutState("error");
+      // 1. Collect ALL IDs into a single comma-separated string
+      const allBookingIds = tickets.map(t => t.id).join(","); 
+
+      // 2. Prepare all items for the Stripe Checkout screen
+      const items = tickets.map((ticket) => ({
+        menuItemName: ticket.eventName || 'Event Ticket',
+        quantity: ticket.numberOfTickets || 1,
+        price: ticket.totalAmount / (ticket.numberOfTickets || 1),
+      }));
+
+      // 3. Pass the string of IDs to your service
+      const session = await createStripeCheckoutSession(items, token, allBookingIds);
+
+      if (session?.url) {
+        window.location.href = session.url;
         return;
       }
-
-      // Prepare the items for Stripe checkout
-      const items = tickets.map((ticket) => {
-        // Extract event name - handle different possible structures
-        const eventName = ticket.eventName ||
-          ticket.event?.name ||
-          ticket.eventId ||
-          'Event Ticket';
-
-        const quantity = ticket.numberOfTickets ||
-          ticket.quantity ||
-          1;
-
-        const totalAmount = ticket.totalAmount ||
-          ticket.amount ||
-          0;
-
-        return {
-          menuItemName: eventName,
-          quantity: quantity,
-          price: Math.round(totalAmount / quantity),
-        };
-      });
-
-      console.log("🛒 Prepared items for checkout:", items);
-
-      // Apply promo code if valid
-      if (pricing.discount > 0) {
-        console.log("🎟️ Applying promo code:", promoCode);
-        // You can add promo code validation API call here if needed
-      }
-
-      // Create Stripe checkout session using api.js service
-      console.log("💳 Creating Stripe checkout session...");
-      const session = await createStripeCheckoutSession(items, token);
-
-      console.log("✅ Stripe session created:", session);
-
-      // Stripe.js no longer supports stripe.redirectToCheckout.
-      // Server should return a `url` on the session object — redirect client-side.
-      if (session?.url && typeof window !== "undefined") {
-        console.log("↪️ Redirecting to Checkout URL...", session.url);
-        window.location.href = session.url;
-        return; // redirecting
-      }
-
-      // If `url` is not provided, surface a clear error.
-      throw new Error(
-        "Checkout session did not include a redirect URL. Ensure the server returns `session.url`."
-      );
-
-      // This code may not execute due to redirect
-      setCheckoutState("success");
-
     } catch (error) {
-      console.error("❌ Error during payment:", error);
-      setErrorMessage(error.message || "Payment processing failed. Please try again.");
       setCheckoutState("error");
+      setErrorMessage(error.message);
     }
   };
 
