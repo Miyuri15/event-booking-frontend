@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { loginUser, registerUser } from "@/lib/api";
 import { saveAuth } from "@/lib/auth";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const initialRegisterState = {
   name: "",
@@ -93,6 +93,15 @@ export default function AuthPage() {
     error: "",
     success: "",
   });
+  const [redirectTo, setRedirectTo] = useState(null);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const redirect = searchParams.get("redirect");
+    if (redirect) {
+      setRedirectTo(redirect);
+    }
+  }, [searchParams]);
 
   const handleRegister = async (event) => {
     event.preventDefault();
@@ -126,7 +135,7 @@ export default function AuthPage() {
       setShowLoginPassword(false);
       saveAuth(data);
       setLoginForm(initialLoginState);
-      router.push(data?.user?.role === "ADMIN" ? "/explore" : "/dashboard");
+      router.push(redirectTo || "/dashboard");
     } catch (error) {
       console.error("Login error:", error);
       setStatus({
