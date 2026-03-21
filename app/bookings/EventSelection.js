@@ -29,7 +29,7 @@ const EventSelection = ({
           onClick={() => setSelectedEventId(event._id)}
           type="button"
         >
-          <h4 className="mb-2 text-[1.15rem]">{event.title}</h4>
+          <h4 className="mb-2 text-[1.15rem]">{event.name}</h4>
           <p className="mb-0 text-[var(--text-muted)]">{event.venue}</p>
           <strong>{formatDate(event.date)}</strong>
         </button>

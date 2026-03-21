@@ -267,13 +267,6 @@ export default function BookingsPage() {
               >
                 {isLoadingEvents ? "Loading..." : "Start Booking"}
               </button>
-              <button
-                className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px disabled:opacity-50"
-                disabled={isLoadingEvents || !selectedEvent}
-                type="button"
-              >
-                View Seat Map
-              </button>
             </div>
           </article>
         </section>
@@ -422,6 +415,7 @@ export default function BookingsPage() {
                 <PaymentReview
                   selectedEvent={selectedEvent}
                   total={total}
+                  serviceFee={serviceFee}
                   ticketCount={ticketCount}
                   isProcessing={isPlacingBooking}
                   onConfirm={confirmBooking}

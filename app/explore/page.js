@@ -5,6 +5,7 @@ import AppShell from "@/components/AppShell";
 import AuthGuard from "@/components/AuthGuard";
 import { fetchEvents } from "@/lib/api";
 import { getAuth, isAdmin } from "@/lib/auth";
+import BookingModal from "@/components/booking/BookingModal";
 
 function formatPrice(value) {
   return `LKR ${Number(value || 0).toLocaleString()}`;
@@ -105,11 +106,17 @@ function CategoryFilter({ categories, selectedCategory, onCategoryChange }) {
   );
 }
 
-function EventCard({ event, adminMode, onSelect }) {
+function EventCard({ event, adminMode, onSelect, onBookNow }) {
   const isReserveDisabled =
     event.status !== "Active" || Number(event.availableSeats) <= 0;
   const eventImage = event.images?.[0]?.url || "/placeholder-event.jpg";
   const seatsPercentage = (event.availableSeats / event.totalSeats) * 100;
+
+  const handleBookNow = () => {
+    if (onBookNow && !isReserveDisabled) {
+      onBookNow(event);
+    }
+  };
 
   return (
     <article className="group flex flex-col rounded-2xl border border-[rgba(54,45,32,0.08)] bg-white overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
@@ -235,16 +242,10 @@ function EventCard({ event, adminMode, onSelect }) {
                 : "bg-gradient-to-r from-[var(--accent)] to-[#d7834d] text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
             }`}
             disabled={isReserveDisabled}
+            onClick={handleBookNow}
             type="button"
           >
             {isReserveDisabled ? "Unavailable" : "Book Now →"}
-          </button>
-          <button
-            className="cursor-pointer rounded-full border-2 border-[rgba(33,83,79,0.2)] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--secondary)] transition-all duration-200 hover:bg-[rgba(33,83,79,0.05)] hover:-translate-y-0.5"
-            type="button"
-            onClick={() => onSelect(event)}
-          >
-            Details
           </button>
         </div>
       </div>
@@ -319,6 +320,30 @@ export default function ExplorePage() {
     loading: true,
     error: "",
   });
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [selectedEventForBooking, setSelectedEventForBooking] = useState(null);
+
+  const handleBookNow = (event) => {
+    setSelectedEventForBooking(event);
+
+    const handleBookingSuccess = (eventName, ticketCount) => {
+      // You can show a success toast or notification here
+      console.log(
+        `Successfully booked ${ticketCount} tickets for ${eventName}`,
+      );
+      // Optionally refresh events to update available seats
+      // You can refetch events here if needed
+    };
+    setIsBookingModalOpen(true);
+  };
+
+  const handleBookingSuccess = (eventName, ticketCount) => {
+    // You can show a success toast or notification here
+    alert(`Successfully booked ${ticketCount} tickets for ${eventName}`);
+    console.log(`Successfully booked ${ticketCount} tickets for ${eventName}`);
+    // Optionally refresh events to update available seats
+    // You can refetch events here if needed
+  };
 
   // Extract unique categories from events
   const categories = useMemo(() => {
@@ -481,6 +506,7 @@ export default function ExplorePage() {
                         adminMode={adminMode}
                         event={event}
                         onSelect={setSelectedEvent}
+                        onBookNow={handleBookNow}
                       />
                     ))}
                   </div>
@@ -515,6 +541,13 @@ export default function ExplorePage() {
             </section>
           </>
         )}
+
+        <BookingModal
+          isOpen={isBookingModalOpen}
+          onClose={() => setIsBookingModalOpen(false)}
+          preselectedEventId={selectedEventForBooking?._id}
+          onBookingSuccess={handleBookingSuccess}
+        />
       </AppShell>
     </AuthGuard>
   );

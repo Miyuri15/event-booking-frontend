@@ -3,6 +3,7 @@
 const PaymentReview = ({
   selectedEvent,
   total,
+  serviceFee,
   ticketCount,
   isProcessing,
   onConfirm,
@@ -54,7 +55,7 @@ const PaymentReview = ({
           LKR {total.toLocaleString()}
         </strong>
         <p className="text-sm text-[var(--text-muted)] mt-1">
-          Includes LKR {Math.round(total * 0.1).toLocaleString()} service fee
+          Includes LKR {serviceFee.toLocaleString()} service fee
         </p>
       </div>
 
