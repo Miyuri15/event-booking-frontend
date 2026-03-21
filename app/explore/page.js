@@ -2,7 +2,7 @@
 
 import AppShell from "@/components/AppShell";
 import AuthGuard from "@/components/AuthGuard";
-import { createEvent, fetchEvents } from "@/lib/api"; // Changed from fetchUserEvents
+import { createEvent, fetchEvents } from "@/lib/api"; // Only import fetchEvents, not fetchUserEvents
 import { getAuth, isAdmin } from "@/lib/auth";
 import { useEffect, useMemo, useState } from "react";
 
@@ -193,89 +193,6 @@ function EventCard({ event, adminMode, onSelect }) {
   );
 }
 
-function EventDetailPanel({ event, adminMode }) {
-  if (!event) {
-    return null;
-  }
-
-  return (
-    <section className="sticky top-6 rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px]">
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-          Event Details
-        </p>
-        {adminMode && (
-          <span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-[0.65rem] font-bold tracking-wider text-white uppercase">
-            Admin Preview
-          </span>
-        )}
-      </div>
-      <h3 className="mb-3 text-[1.2rem]">{event.name}</h3>
-      <p className="leading-[1.7] text-[var(--text-muted)]">
-        {event.description}
-      </p>
-
-      <div className="mt-5 grid grid-cols-2 gap-4 max-[560px]:grid-cols-1">
-        <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.68)] p-4">
-          <span className="block text-[0.8rem] uppercase tracking-[0.16em] text-[var(--text-muted)]">
-            Venue
-          </span>
-          <strong>{event.venue}</strong>
-        </div>
-        <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.68)] p-4">
-          <span className="block text-[0.8rem] uppercase tracking-[0.16em] text-[var(--text-muted)]">
-            Status
-          </span>
-          <strong>{event.status}</strong>
-        </div>
-        <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.68)] p-4">
-          <span className="block text-[0.8rem] uppercase tracking-[0.16em] text-[var(--text-muted)]">
-            Date
-          </span>
-          <strong>{formatEventDate(event.date)}</strong>
-        </div>
-        <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.68)] p-4">
-          <span className="block text-[0.8rem] uppercase tracking-[0.16em] text-[var(--text-muted)]">
-            Ticket Price
-          </span>
-          <strong>{formatPrice(event.ticketPrice)}</strong>
-        </div>
-      </div>
-
-      {event.images && event.images.length > 0 && (
-        <div className="mt-5">
-          <span className="block text-[0.8rem] uppercase tracking-[0.16em] text-[var(--text-muted)] mb-2">
-            Event Images
-          </span>
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {event.images.map((img, idx) => (
-              <img
-                key={idx}
-                src={img.url}
-                alt={img.caption || event.name}
-                className="w-24 h-24 object-cover rounded-lg"
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {adminMode ? (
-        <div className="mt-5 rounded-[20px] border border-[rgba(192,90,43,0.15)] bg-[rgba(192,90,43,0.08)] p-4 text-[var(--text-muted)]">
-          <strong>Created By:</strong> {event.createdBy}
-          <br />
-          <strong>Event ID:</strong> {event._id}
-          <br />
-          <strong>Available Seats:</strong> {event.availableSeats}/
-          {event.totalSeats} (
-          {((event.availableSeats / event.totalSeats) * 100).toFixed(1)}%
-          available)
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
 export default function ExplorePage() {
   const [auth, setAuth] = useState(null);
   const [events, setEvents] = useState([]);
@@ -304,33 +221,6 @@ export default function ExplorePage() {
     setAuth(getAuth());
   }, []);
 
-  const loadEvents = async (token) => {
-    try {
-      const data = await fetchUserEvents(token);
-      const nextEvents =
-        Array.isArray(data) && data.length ? data : fallbackEvents;
-      setEvents(nextEvents);
-      setSelectedEvent(nextEvents[0] || null);
-      setStatus({
-        loading: false,
-        error:
-          Array.isArray(data) && data.length
-            ? ""
-            : "Event service returned no records yet. Showing preview events.",
-        source: Array.isArray(data) && data.length ? "service" : "fallback",
-      });
-    } catch (error) {
-      setEvents(fallbackEvents);
-      setSelectedEvent(fallbackEvents[0]);
-      setStatus({
-        loading: false,
-        error:
-          "Live event data is unavailable right now. Showing preview events.",
-        source: "fallback",
-      });
-    }
-  };
-
   useEffect(() => {
     if (!auth?.token) {
       setStatus((prev) => ({ ...prev, loading: false }));
@@ -342,7 +232,8 @@ export default function ExplorePage() {
         // Fetch active events by default
         const response = await fetchEvents({ status: "Active" }, auth.token);
         // The API returns { data: [...], pagination: {...} }
-        const eventsData = response?.data || [];
+        console.log("Fetched events response:", response);
+        const eventsData = response || [];
 
         if (eventsData.length > 0) {
           setEvents(eventsData);
@@ -468,8 +359,14 @@ export default function ExplorePage() {
         error: "",
         source: "service",
       });
-      await loadEvents(auth.token);
-      setSelectedEvent(createdEvent);
+
+      // Reload events to get the latest list
+      const response = await fetchEvents({ status: "Active" }, auth.token);
+      const eventsData = response?.data || [];
+      if (eventsData.length > 0) {
+        setEvents(eventsData);
+        setSelectedEvent(createdEvent);
+      }
     } catch (error) {
       console.error("Create event error:", error);
       setStatus((current) => ({
@@ -696,7 +593,7 @@ export default function ExplorePage() {
                 ))}
               </div>
 
-              <EventDetailPanel adminMode={adminMode} event={selectedEvent} />
+              {/* <EventDetailPanel adminMode={adminMode} event={selectedEvent} /> */}
             </section>
           </>
         )}

@@ -6,7 +6,7 @@ import {
   createAdminUser,
   deleteAdminUser,
   fetchAdminUsers,
-  fetchEvents, // Changed from fetchUserEvents
+  fetchEvents,
   updateAdminUser,
 } from "@/lib/api";
 import { getAuth, isAdmin } from "@/lib/auth";
@@ -20,7 +20,7 @@ function UserDashboard({ auth }) {
   const [stats, setStats] = useState({
     recommended: 0,
     upcoming: 0,
-    savedVenues: 0
+    savedVenues: 12, // This might come from user preferences later
   });
 
   useEffect(() => {
@@ -28,35 +28,47 @@ function UserDashboard({ auth }) {
       if (!auth?.token) return;
 
       try {
-        // Fetch featured events (maybe upcoming or popular ones)
-        const featuredResponse = await fetchEvents({
-          limit: 3,
-          status: 'Active',
-          sort: 'date'
-        }, auth.token);
+        // Fetch featured events (with authentication token)
+        const featuredResponse = await fetchEvents(
+          {
+            limit: 3,
+            status: "Active",
+            sort: "date",
+          },
+          auth.token,
+        );
 
-        // Fetch user's upcoming bookings/events
-        const upcomingResponse = await fetchEvents({
-          status: 'Active',
-          startDate: new Date().toISOString(),
-          limit: 3
-        }, auth.token);
+        // Fetch upcoming events (with authentication token)
+        const upcomingResponse = await fetchEvents(
+          {
+            status: "Active",
+            // Get events from current date onwards
+            date: { $gte: new Date().toISOString() },
+            limit: 3,
+            sort: "date",
+          },
+          auth.token,
+        );
 
         // Handle the response structure (with pagination)
-        const featuredEventsData = featuredResponse.data || [];
-        const upcomingEventsData = upcomingResponse.data || [];
+        const featuredEventsData =
+          featuredResponse?.data || featuredResponse || [];
+        const upcomingEventsData =
+          upcomingResponse?.data || upcomingResponse || [];
 
         setFeaturedEvents(featuredEventsData);
         setUpcomingEvents(upcomingEventsData);
-        
+
         // Update stats
         setStats({
-          recommended: featuredResponse.pagination?.total || featuredEventsData.length,
-          upcoming: upcomingResponse.pagination?.total || upcomingEventsData.length,
-          savedVenues: 12 // This might come from user preferences later
+          recommended:
+            featuredResponse?.pagination?.total || featuredEventsData.length,
+          upcoming:
+            upcomingResponse?.pagination?.total || upcomingEventsData.length,
+          savedVenues: 12,
         });
       } catch (error) {
-        console.error('Failed to load events:', error);
+        console.error("Failed to load events:", error);
       } finally {
         setLoading(false);
       }
@@ -103,7 +115,9 @@ function UserDashboard({ auth }) {
 
           <div className="mt-[1.2rem] grid grid-cols-3 gap-[0.85rem] max-[900px]:grid-cols-1">
             <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-              <strong className="mb-1 block text-2xl">{stats.recommended}</strong>
+              <strong className="mb-1 block text-2xl">
+                {stats.recommended}
+              </strong>
               <span className="text-[var(--text-muted)]">
                 Recommended events
               </span>
@@ -115,7 +129,9 @@ function UserDashboard({ auth }) {
               </span>
             </div>
             <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-              <strong className="mb-1 block text-2xl">{stats.savedVenues}</strong>
+              <strong className="mb-1 block text-2xl">
+                {stats.savedVenues}
+              </strong>
               <span className="text-[var(--text-muted)]">Saved venues</span>
             </div>
           </div>
@@ -135,15 +151,25 @@ function UserDashboard({ auth }) {
                 >
                   <span className="mt-[0.45rem] h-3 w-3 shrink-0 rounded-full bg-[var(--accent)]" />
                   <div>
-                    <strong>{new Date(event.date).toLocaleDateString('en-US', { weekday: 'long' })}</strong>
+                    <strong>
+                      {new Date(event.date).toLocaleDateString("en-US", {
+                        weekday: "long",
+                      })}
+                    </strong>
                     <p className="mb-0 text-[var(--text-muted)]">
-                      {event.name} at {new Date(event.date).toLocaleTimeString()}
+                      {event.name} at{" "}
+                      {new Date(event.date).toLocaleTimeString("en-US", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </p>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-[var(--text-muted)]">No upcoming events found</p>
+              <p className="text-[var(--text-muted)]">
+                No upcoming events found
+              </p>
             )}
           </div>
         </article>
@@ -169,7 +195,12 @@ function UserDashboard({ auth }) {
                 <h4 className="mb-2 text-[1.15rem]">{event.name}</h4>
                 <p className="mb-0 text-[var(--text-muted)]">{event.venue}</p>
                 <div className="mt-auto flex items-center justify-between gap-4 pt-4">
-                  <span>{new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  <span>
+                    {new Date(event.date).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
                   <Link
                     href={`/events/${event._id}`}
                     className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px no-underline inline-block"
@@ -190,7 +221,7 @@ function UserDashboard({ auth }) {
   );
 }
 
-// AdminDashboard component remains mostly the same but with updated event fetching
+// AdminDashboard component remains the same but with updated event fetching
 function AdminDashboard({ auth }) {
   const [admins, setAdmins] = useState([]);
   const [events, setEvents] = useState([]);
@@ -217,12 +248,12 @@ function AdminDashboard({ auth }) {
       try {
         // Fetch all events (including all statuses) for admin view
         const eventsResponse = await fetchEvents({ limit: 100 }, auth.token);
-        
+
         // Fetch admin users
         const adminsResult = await fetchAdminUsers(auth.token);
 
         setAdmins(Array.isArray(adminsResult) ? adminsResult : []);
-        setEvents(eventsResponse.data || []);
+        setEvents(eventsResponse?.data || eventsResponse || []);
         setStatus({ error: "", success: "" });
       } catch (error) {
         setStatus({
@@ -247,7 +278,6 @@ function AdminDashboard({ auth }) {
   };
 
   // Rest of your AdminDashboard component remains the same...
-  // (keep all the existing admin functions and JSX)
   const handleCreateAdmin = async (event) => {
     event.preventDefault();
 
@@ -287,7 +317,11 @@ function AdminDashboard({ auth }) {
     }
 
     try {
-      const updatedAdmin = await updateAdminUser(editAdminId, payload, auth.token);
+      const updatedAdmin = await updateAdminUser(
+        editAdminId,
+        payload,
+        auth.token,
+      );
       setAdmins((current) =>
         current.map((admin) =>
           admin._id === updatedAdmin._id ? updatedAdmin : admin,
@@ -331,7 +365,9 @@ function AdminDashboard({ auth }) {
           <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
             Loading
           </p>
-          <h3 className="mb-3 text-[1.05rem]">Preparing the admin workspace...</h3>
+          <h3 className="mb-3 text-[1.05rem]">
+            Preparing the admin workspace...
+          </h3>
         </section>
       ) : (
         <>
@@ -341,21 +377,31 @@ function AdminDashboard({ auth }) {
                 Admins
               </span>
               <strong className="mt-2 block text-3xl">{admins.length}</strong>
-              <p className="mt-2 text-[var(--text-muted)]">Active admin accounts</p>
+              <p className="mt-2 text-[var(--text-muted)]">
+                Active admin accounts
+              </p>
             </article>
             <article className="rounded-[24px] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[var(--shadow)]">
               <span className="text-[0.8rem] uppercase tracking-[0.18em] text-[var(--accent-dark)]">
                 Events
               </span>
-              <strong className="mt-2 block text-3xl">{eventCounts.total}</strong>
-              <p className="mt-2 text-[var(--text-muted)]">Tracked event records</p>
+              <strong className="mt-2 block text-3xl">
+                {eventCounts.total}
+              </strong>
+              <p className="mt-2 text-[var(--text-muted)]">
+                Tracked event records
+              </p>
             </article>
             <article className="rounded-[24px] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[var(--shadow)]">
               <span className="text-[0.8rem] uppercase tracking-[0.18em] text-[var(--accent-dark)]">
                 Active
               </span>
-              <strong className="mt-2 block text-3xl">{eventCounts.active}</strong>
-              <p className="mt-2 text-[var(--text-muted)]">Currently bookable events</p>
+              <strong className="mt-2 block text-3xl">
+                {eventCounts.active}
+              </strong>
+              <p className="mt-2 text-[var(--text-muted)]">
+                Currently bookable events
+              </p>
             </article>
             <article className="rounded-[24px] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[var(--shadow)]">
               <span className="text-[0.8rem] uppercase tracking-[0.18em] text-[var(--accent-dark)]">
@@ -440,7 +486,9 @@ function AdminDashboard({ auth }) {
               <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
                 Update Admin
               </p>
-              <h3 className="mb-4 text-[1.05rem]">Edit selected admin credentials</h3>
+              <h3 className="mb-4 text-[1.05rem]">
+                Edit selected admin credentials
+              </h3>
               {editAdminId ? (
                 <form className="grid gap-4" onSubmit={handleUpdateAdmin}>
                   <input
@@ -520,7 +568,9 @@ function AdminDashboard({ auth }) {
                 >
                   <div>
                     <strong className="block text-[1rem]">{admin.name}</strong>
-                    <span className="text-[var(--text-muted)]">{admin.email}</span>
+                    <span className="text-[var(--text-muted)]">
+                      {admin.email}
+                    </span>
                   </div>
                   <span className="ml-auto inline-flex rounded-full bg-[rgba(33,83,79,0.12)] px-3 py-2 text-[0.82rem] font-bold text-[var(--secondary)]">
                     {admin.role}
@@ -548,7 +598,9 @@ function AdminDashboard({ auth }) {
             <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
               Event Status
             </p>
-            <h3 className="mb-4 text-[1.05rem]">Live event details and health</h3>
+            <h3 className="mb-4 text-[1.05rem]">
+              Live event details and health
+            </h3>
             <div className="grid gap-4">
               {events.length === 0 ? (
                 <p className="text-[var(--text-muted)]">
@@ -561,7 +613,9 @@ function AdminDashboard({ auth }) {
                     key={event._id}
                   >
                     <div>
-                      <strong className="block text-[1rem]">{event.name}</strong>
+                      <strong className="block text-[1rem]">
+                        {event.name}
+                      </strong>
                       <p className="mt-1 text-[var(--text-muted)]">
                         {event.venue} | {new Date(event.date).toLocaleString()}
                       </p>
@@ -584,7 +638,9 @@ function AdminDashboard({ auth }) {
                       <span className="block text-[0.82rem] uppercase tracking-[0.18em] text-[var(--text-muted)]">
                         Price
                       </span>
-                      <strong>LKR {Number(event.ticketPrice || 0).toLocaleString()}</strong>
+                      <strong>
+                        LKR {Number(event.ticketPrice || 0).toLocaleString()}
+                      </strong>
                     </div>
                   </article>
                 ))
@@ -606,7 +662,11 @@ export default function DashboardPage() {
 
   return (
     <AuthGuard>
-      {isAdmin(auth) ? <AdminDashboard auth={auth} /> : <UserDashboard auth={auth} />}
+      {isAdmin(auth) ? (
+        <AdminDashboard auth={auth} />
+      ) : (
+        <UserDashboard auth={auth} />
+      )}
     </AuthGuard>
   );
 }
