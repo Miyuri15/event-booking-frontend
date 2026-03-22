@@ -217,18 +217,18 @@ function PaymentsPageContent() {
             <div className="mt-6 flex flex-wrap gap-3">
               <button
                 className="cursor-pointer rounded-full bg-[var(--accent)] px-[1.35rem] py-[0.95rem] text-white shadow-lg disabled:opacity-50"
-                disabled={checkoutState === "processing"}
+                disabled={checkoutState === "processing" || !bookingIdFromQuery}
                 onClick={handleCheckout}
               >
                 {checkoutState === "processing" ? "Processing..." : "Pay Now"}
               </button>
-              <button
+              {/* <button
                 className="cursor-pointer rounded-full border border-[var(--border)] px-[1.35rem] py-[0.95rem] disabled:opacity-50"
                 onClick={resetCheckout}
                 disabled={checkoutState === "processing"}
               >
                 Reset
-              </button>
+              </button> */}
             </div>
           </article>
 
