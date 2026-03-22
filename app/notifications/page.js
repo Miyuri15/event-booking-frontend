@@ -57,6 +57,7 @@ const fallbackNotifications = [
 ];
 
 const PREVIEW_NOTIFICATION_COUNT = 3;
+const HIDDEN_NOTIFICATION_TYPES = new Set(["LOGIN_ALERT"]);
 
 function formatTypeLabel(type) {
   return type.replaceAll("_", " ");
@@ -93,6 +94,12 @@ function buildMetaSummary(notification) {
   return parts.join(" | ");
 }
 
+function filterVisibleNotifications(items) {
+  return items.filter(
+    (item) => !HIDDEN_NOTIFICATION_TYPES.has(String(item?.type || "").toUpperCase()),
+  );
+}
+
 export default function NotificationsPage() {
   const [auth, setAuth] = useState(null);
   const [notifications, setNotifications] = useState([]);
@@ -111,14 +118,14 @@ export default function NotificationsPage() {
 
     try {
       const data = await fetchUserNotifications(currentAuth.user.id, currentAuth.token);
-      setNotifications(Array.isArray(data) ? data : []);
+      setNotifications(filterVisibleNotifications(Array.isArray(data) ? data : []));
       setStatus({
         loading: false,
         error: "",
         source: "service",
       });
     } catch (error) {
-      setNotifications(fallbackNotifications);
+      setNotifications(filterVisibleNotifications(fallbackNotifications));
       setStatus({
         loading: false,
         error: "Live notifications are not fully connected yet. Showing contract preview data.",
