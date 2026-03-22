@@ -4,6 +4,7 @@ import AppShell from "@/components/AppShell";
 import AuthGuard from "@/components/AuthGuard";
 import {
   fetchUserNotifications,
+  markAllNotificationsAsRead,
   markNotificationAsRead,
 } from "@/lib/api";
 import { getAuth } from "@/lib/auth";
@@ -56,6 +57,7 @@ const fallbackNotifications = [
 ];
 
 const PREVIEW_NOTIFICATION_COUNT = 3;
+const HIDDEN_NOTIFICATION_TYPES = new Set(["LOGIN_ALERT"]);
 
 function formatTypeLabel(type) {
   return type.replaceAll("_", " ");
@@ -92,6 +94,12 @@ function buildMetaSummary(notification) {
   return parts.join(" | ");
 }
 
+function filterVisibleNotifications(items) {
+  return items.filter(
+    (item) => !HIDDEN_NOTIFICATION_TYPES.has(String(item?.type || "").toUpperCase()),
+  );
+}
+
 export default function NotificationsPage() {
   const [auth, setAuth] = useState(null);
   const [notifications, setNotifications] = useState([]);
@@ -101,6 +109,7 @@ export default function NotificationsPage() {
     error: "",
     source: "service",
   });
+  const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
 
   const loadNotifications = useCallback(async (currentAuth) => {
     if (!currentAuth?.token || !currentAuth?.user?.id) {
@@ -109,14 +118,14 @@ export default function NotificationsPage() {
 
     try {
       const data = await fetchUserNotifications(currentAuth.user.id, currentAuth.token);
-      setNotifications(Array.isArray(data) ? data : []);
+      setNotifications(filterVisibleNotifications(Array.isArray(data) ? data : []));
       setStatus({
         loading: false,
         error: "",
         source: "service",
       });
     } catch (error) {
-      setNotifications(fallbackNotifications);
+      setNotifications(filterVisibleNotifications(fallbackNotifications));
       setStatus({
         loading: false,
         error: "Live notifications are not fully connected yet. Showing contract preview data.",
@@ -209,6 +218,43 @@ export default function NotificationsPage() {
     }
   };
 
+  const handleMarkAllRead = async () => {
+    const unreadNotifications = notifications.filter((item) => item.status === "UNREAD");
+
+    if (unreadNotifications.length === 0 || isMarkingAllRead) {
+      return;
+    }
+
+    const nextNotifications = notifications.map((item) => ({
+      ...item,
+      status: item.status === "UNREAD" ? "READ" : item.status,
+    }));
+
+    setNotifications(nextNotifications);
+    setIsMarkingAllRead(true);
+    window.dispatchEvent(
+      new CustomEvent("notifications:refresh", {
+        detail: {
+          unreadCount: 0,
+        },
+      }),
+    );
+
+    if (status.source !== "service" || !auth?.token || !auth?.user?.id) {
+      setIsMarkingAllRead(false);
+      return;
+    }
+
+    try {
+      await markAllNotificationsAsRead(auth.user.id, auth.token);
+      window.dispatchEvent(new Event("notifications:refresh"));
+    } catch (error) {
+      // Keep optimistic UI.
+    } finally {
+      setIsMarkingAllRead(false);
+    }
+  };
+
   return (
     <AuthGuard>
       <AppShell
@@ -292,15 +338,27 @@ export default function NotificationsPage() {
               <p className="eyebrow">Activity Feed</p>
               <h3>Messages for this account</h3>
             </div>
-            {notifications.length > PREVIEW_NOTIFICATION_COUNT ? (
-              <button
-                className="secondary-button"
-                onClick={() => setShowAllNotifications((current) => !current)}
-                type="button"
-              >
-                {showAllNotifications ? "Show latest 3" : "See all notifications"}
-              </button>
-            ) : null}
+            <div className="flex flex-wrap gap-3">
+              {unreadCount > 0 ? (
+                <button
+                  className="secondary-button"
+                  disabled={isMarkingAllRead}
+                  onClick={handleMarkAllRead}
+                  type="button"
+                >
+                  {isMarkingAllRead ? "Marking..." : "Mark all as read"}
+                </button>
+              ) : null}
+              {notifications.length > PREVIEW_NOTIFICATION_COUNT ? (
+                <button
+                  className="secondary-button"
+                  onClick={() => setShowAllNotifications((current) => !current)}
+                  type="button"
+                >
+                  {showAllNotifications ? "Show latest 3" : "See all notifications"}
+                </button>
+              ) : null}
+            </div>
           </div>
           <div className="metric-row" style={{ marginBottom: "1rem" }}>
             <div className="metric-card">

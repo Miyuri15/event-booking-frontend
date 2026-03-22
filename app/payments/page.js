@@ -3,78 +3,14 @@
 import AppShell from "@/components/AppShell";
 import AuthGuard from "@/components/AuthGuard";
 import { Suspense, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { fetchEventById, fetchMyBookings } from "@/lib/api";
+import {
+  createStripeCheckoutSession,
+  fetchPendingBookings,
+  fetchBookingById,
+  fetchRecentPayments,
+} from "@/lib/api";
 import { getAuth } from "@/lib/auth";
-
-const paymentMethods = [
-  { label: "Visa ending in 2481", type: "Primary Card" },
-  { label: "Mastercard ending in 9044", type: "Backup Card" },
-  { label: "Luma Wallet Balance", type: "LKR 6,500 available" },
-];
-
-const transactions = [
-  {
-    title: "Neon Harbor Music Night",
-    amount: "LKR 15,000",
-    status: "Paid",
-    date: "April 14",
-  },
-  {
-    title: "Future of Product Asia",
-    amount: "LKR 12,000",
-    status: "Pending",
-    date: "April 16",
-  },
-];
-
-const getBookingEvent = (booking) => {
-  return booking?.event || booking?.eventId || booking?.eventDetails || null;
-};
-
-const getBookingEventId = (booking) => {
-  const eventDetails = getBookingEvent(booking);
-
-  if (typeof eventDetails === "string") {
-    return eventDetails;
-  }
-
-  return eventDetails?._id || booking?.eventId?._id || booking?.event?._id || null;
-};
-
-const getBookingTitle = (booking) => {
-  const eventDetails = getBookingEvent(booking);
-  return (
-    booking?.title ||
-    booking?.name ||
-    booking?.eventName ||
-    eventDetails?.name ||
-    eventDetails?.title ||
-    "Selected reservation"
-  );
-};
-
-const getBookingDate = (booking) => {
-  const eventDetails = getBookingEvent(booking);
-  return booking?.eventDate || booking?.date || eventDetails?.date || null;
-};
-
-const getBookingTicketPrice = (booking, fallbackEvent) => {
-  const eventDetails = getBookingEvent(booking);
-  return Number(
-    booking?.ticketPrice ||
-      booking?.price ||
-      booking?.totalPrice ||
-      eventDetails?.ticketPrice ||
-      fallbackEvent?.ticketPrice ||
-      0,
-  );
-};
-
-const getBookingTicketCount = (booking) => {
-  return Number(booking?.numberOfTickets || booking?.ticketCount || 0);
-};
 
 export default function PaymentsPage() {
   return (
@@ -92,7 +28,9 @@ function PaymentsPageFallback() {
         description="Handle checkout, saved payment methods, and transaction visibility in a dedicated payment portal."
       >
         <section className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px]">
-          <p className="text-[var(--text-muted)]">Loading payments...</p>
+          <div className="h-40 flex items-center justify-center">
+             <p className="text-[var(--text-muted)] animate-pulse">Loading payment portal...</p>
+          </div>
         </section>
       </AppShell>
     </AuthGuard>
@@ -100,321 +38,208 @@ function PaymentsPageFallback() {
 }
 
 function PaymentsPageContent() {
+  const auth = useMemo(() => (typeof window !== "undefined" ? getAuth() : null), []);
+  const user = auth?.user || null;
+  const token = auth?.token || null;
+
   const searchParams = useSearchParams();
-  const [auth, setAuth] = useState(null);
-  const [selectedMethod, setSelectedMethod] = useState(paymentMethods[0].label);
-  const [promoCode, setPromoCode] = useState("");
+  const bookingIdFromQuery = searchParams?.get("bookingId");
+
   const [checkoutState, setCheckoutState] = useState("idle");
-  const [paymentHistory, setPaymentHistory] = useState(transactions);
-  const [myBookings, setMyBookings] = useState([]);
-  const [isLoadingBookings, setIsLoadingBookings] = useState(true);
-  const [bookingsError, setBookingsError] = useState("");
-  const [selectedBookingEvent, setSelectedBookingEvent] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
+  
+  const [booking, setBooking] = useState(null);
+  const [isLoadingBooking, setIsLoadingBooking] = useState(false);
+  const [recentPayments, setRecentPayments] = useState([]);
+  const [isLoadingRecentPayments, setIsLoadingRecentPayments] = useState(false);
 
+  // 1. Load Specific Booking (Matching your provided JSON structure)
   useEffect(() => {
-    setAuth(getAuth());
-  }, []);
-
-  useEffect(() => {
-    if (!auth?.token) {
-      return;
-    }
-
-    const loadBookings = async () => {
-      setIsLoadingBookings(true);
+    const loadBooking = async () => {
+      if (!bookingIdFromQuery || !token) return;
+      setIsLoadingBooking(true);
       try {
-        const data = await fetchMyBookings(auth.token, {
-          sortBy: "createdAt",
-          sortOrder: "desc",
+        const data = await fetchBookingById(bookingIdFromQuery, token);
+        
+        // Map directly from your response object
+        setBooking({
+          id: data.id,
+          eventName: data.eventName,
+          eventDate: data.eventDate,
+          venue: data.venue,
+          numberOfTickets: data.numberOfTickets,
+          totalAmount: data.totalAmount, // Already includes all fees
+          paymentStatus: data.paymentStatus
         });
-        setMyBookings(Array.isArray(data) ? data : []);
-        setBookingsError("");
-      } catch (error) {
-        setBookingsError(error.message || "Failed to load bookings.");
+      } catch (err) {
+        console.error("Failed to load booking:", err);
+        setErrorMessage("Failed to load booking details.");
       } finally {
-        setIsLoadingBookings(false);
+        setIsLoadingBooking(false);
       }
     };
+    loadBooking();
+  }, [bookingIdFromQuery, token]);
 
-    loadBookings();
-  }, [auth]);
-
-  const pendingBookings = useMemo(() => {
-    return myBookings.filter(
-      (booking) => (booking?.status || "").toLowerCase() === "pending",
-    );
-  }, [myBookings]);
-
-  const selectedBooking = useMemo(() => {
-    const bookingId = searchParams.get("bookingId");
-    if (bookingId) {
-      return (
-        pendingBookings.find(
-          (booking) => String(booking?._id || booking?.id) === bookingId,
-        ) || null
-      );
-    }
-
-    return pendingBookings[0] || null;
-  }, [pendingBookings, searchParams]);
-
+  // 2. Load Recent Payments
   useEffect(() => {
-    if (!auth?.token || !selectedBooking) {
-      setSelectedBookingEvent(null);
-      return;
-    }
-
-    const ticketPrice = getBookingTicketPrice(selectedBooking);
-    if (ticketPrice > 0) {
-      setSelectedBookingEvent(getBookingEvent(selectedBooking));
-      return;
-    }
-
-    const eventId = getBookingEventId(selectedBooking);
-    if (!eventId) {
-      setSelectedBookingEvent(null);
-      return;
-    }
-
-    const loadSelectedEvent = async () => {
+    const loadRecent = async () => {
+      if (!token) return;
+      setIsLoadingRecentPayments(true);
       try {
-        const eventDetails = await fetchEventById(eventId, auth.token);
-        setSelectedBookingEvent(eventDetails || null);
-      } catch (error) {
-        console.error("Failed to load booking event details:", error);
-        setSelectedBookingEvent(null);
+        const resp = await fetchRecentPayments(token);
+        const list = Array.isArray(resp) ? resp : resp.data || [];
+        setRecentPayments(list);
+      } catch (err) {
+        console.error("Failed to load recent payments:", err);
+      } finally {
+        setIsLoadingRecentPayments(false);
       }
     };
+    loadRecent();
+  }, [token]);
 
-    loadSelectedEvent();
-  }, [auth, selectedBooking]);
-
-  const pricing = useMemo(() => {
-    const ticketPrice = getBookingTicketPrice(
-      selectedBooking,
-      selectedBookingEvent,
-    );
-    const ticketCount = getBookingTicketCount(selectedBooking);
-    const subtotal = ticketPrice * ticketCount;
-    const serviceFee = Math.round(subtotal * 0.1);
-    const discount = promoCode.trim().toUpperCase() === "LUMA10" ? 1500 : 0;
-    return {
-      subtotal,
-      serviceFee,
-      discount,
-      total: subtotal + serviceFee - discount,
-    };
-  }, [promoCode, selectedBooking]);
-
-  const handleCheckout = () => {
-    if (!selectedBooking) return;
-
+  const handleCheckout = async () => {
+    setErrorMessage("");
     setCheckoutState("processing");
 
-    setTimeout(() => {
-      setPaymentHistory((current) => [
-        {
-          title: getBookingTitle(selectedBooking),
-          amount: `LKR ${pricing.total.toLocaleString()}`,
-          status: "Paid",
-          date: "Today",
-        },
-        ...current,
-      ]);
-      setCheckoutState("success");
-    }, 1200);
+    try {
+      const userId = user?.id || user?.userId || user?._id;
+      if (!userId || !token) throw new Error("Authentication required.");
+
+      let items = [];
+      let allBookingIds = "";
+
+      if (booking?.id) {
+        allBookingIds = booking.id;
+        items = [{
+          menuItemName: booking.eventName,
+          quantity: booking.numberOfTickets,
+          // Since totalAmount is inclusive, we divide by quantity for Stripe line items
+          price: booking.totalAmount / booking.numberOfTickets,
+        }];
+      } else {
+        // Fallback for checkout-all logic
+        const bookingsData = await fetchPendingBookings(userId, token);
+        const tickets = Array.isArray(bookingsData) ? bookingsData : bookingsData.data || [];
+        if (!tickets.length) throw new Error("No pending bookings found.");
+        
+        allBookingIds = tickets.map((t) => t.id).join(",");
+        items = tickets.map((ticket) => ({
+          menuItemName: ticket.eventName,
+          quantity: ticket.numberOfTickets,
+          price: ticket.totalAmount / ticket.numberOfTickets,
+        }));
+      }
+
+      const session = await createStripeCheckoutSession(items, token, allBookingIds);
+      if (session?.url) window.location.href = session.url;
+    } catch (error) {
+      setCheckoutState("error");
+      setErrorMessage(error.message);
+    }
   };
 
   return (
     <AuthGuard>
       <AppShell
         title="Payments"
-        description="Handle checkout, saved payment methods, and transaction visibility in a dedicated payment portal."
+        description="Handle checkout and view transaction activity."
       >
+        {errorMessage && (
+          <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
+            {errorMessage}
+          </div>
+        )}
+
         <section className="grid grid-cols-2 gap-6 max-[900px]:grid-cols-1">
+          {/* Checkout Column */}
           <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
             <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
               Checkout Preview
             </p>
-            <h3 className="mb-3 text-[1.05rem]">Fast payment experience</h3>
-            {selectedBooking ? (
-              <div className="mb-4 rounded-[20px] border border-[rgba(192,90,43,0.18)] bg-[rgba(255,255,255,0.7)] p-4">
-                <span className="block text-[0.9rem] text-[var(--text-muted)]">
-                  Paying for
-                </span>
-                <strong className="block text-[1.1rem]">
-                  {getBookingTitle(selectedBooking)}
-                </strong>
-                <p className="mt-1 text-sm text-[var(--text-muted)]">
-                  {getBookingDate(selectedBooking)
-                    ? new Date(getBookingDate(selectedBooking)).toLocaleDateString(
-                        "en-US",
-                        {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        },
-                      )
-                    : "Date TBD"}{" "}
-                  • {getBookingTicketCount(selectedBooking)} ticket(s)
-                </p>
-              </div>
-            ) : null}
+            <h3 className="mb-6 text-[1.05rem]">Confirm your selection</h3>
+            
             <div className="grid gap-4">
-              <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                <span>Subtotal</span>
-                <strong>LKR {pricing.subtotal.toLocaleString()}</strong>
-              </div>
-              <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                <span>Service Fee</span>
-                <strong>LKR {pricing.serviceFee.toLocaleString()}</strong>
-              </div>
-              <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                <span>Promo Discount</span>
-                <strong>- LKR {pricing.discount.toLocaleString()}</strong>
-              </div>
-              <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                <span>Total Due</span>
-                <strong>LKR {pricing.total.toLocaleString()}</strong>
-              </div>
-            </div>
-            <label className="mt-4 grid gap-2 text-[0.95rem] text-[var(--text-main)]">
-              <span>Promo Code</span>
-              <input
-                className="w-full rounded-2xl border border-[rgba(54,45,32,0.16)] bg-[rgba(255,255,255,0.75)] px-4 py-[0.95rem] outline-none focus:border-[rgba(192,90,43,0.45)] focus:shadow-[0_0_0_4px_rgba(192,90,43,0.12)]"
-                onChange={(event) => setPromoCode(event.target.value)}
-                placeholder="Try LUMA10"
-                type="text"
-                value={promoCode}
-              />
-            </label>
-            {checkoutState === "success" ? (
-              <p className="mt-4 rounded-2xl border border-[rgba(47,125,83,0.18)] bg-[rgba(47,125,83,0.08)] px-4 py-[0.9rem] text-[var(--success)]">
-                Payment completed successfully using {selectedMethod}.
-              </p>
-            ) : null}
-            <div className="mt-4 flex flex-wrap gap-3">
-              <button
-                className="cursor-pointer rounded-full border-0 bg-[linear-gradient(135deg,var(--accent)_0%,#d7834d_100%)] px-[1.35rem] py-[0.95rem] text-white shadow-[0_12px_26px_rgba(192,90,43,0.28)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
-                disabled={checkoutState === "processing" || !selectedBooking}
-                onClick={handleCheckout}
-                type="button"
-              >
-                {checkoutState === "processing" ? "Processing..." : "Pay Now"}
-              </button>
-              <button
-                className="cursor-pointer rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.35rem] py-[0.95rem] text-[var(--secondary)] transition-[transform,box-shadow,background] duration-200 hover:-translate-y-px"
-                onClick={() => setCheckoutState("idle")}
-                type="button"
-              >
-                Reset Checkout
-              </button>
-            </div>
-          </article>
+              {isLoadingBooking ? (
+                <div className="h-48 rounded-[20px] bg-gray-100 animate-pulse" />
+              ) : booking ? (
+                <>
+                  {/* Event Details Card */}
+                  <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-white/60 p-5 shadow-sm">
+                    <h4 className="text-lg font-bold text-[var(--text-main)] mb-1">{booking.eventName}</h4>
+                    <div className="space-y-1 text-sm text-[var(--text-muted)]">
+                      <p>📍 {booking.venue}</p>
+                      <p>📅 {new Date(booking.eventDate).toLocaleDateString(undefined, { dateStyle: 'full' })}</p>
+                      <p>🎟️ {booking.numberOfTickets} Ticket(s)</p>
+                    </div>
+                  </div>
 
-          <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
-            <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-              Pending Reservations
-            </p>
-            <h3 className="mb-3 text-[1.05rem]">Choose a booking to pay</h3>
-            <div className="grid gap-4">
-              {isLoadingBookings ? (
-                <p className="text-[var(--text-muted)]">Loading bookings...</p>
-              ) : bookingsError ? (
-                <p className="text-red-600">{bookingsError}</p>
-              ) : pendingBookings.length > 0 ? (
-                pendingBookings.map((booking) => {
-                  const bookingId = String(booking?._id || booking?.id);
-                  const isActive =
-                    bookingId === String(selectedBooking?._id || selectedBooking?.id);
-
-                  return (
-                    <Link
-                      className={
-                        isActive
-                          ? "w-full cursor-pointer rounded-[20px] border border-[rgba(192,90,43,0.35)] bg-[rgba(255,255,255,0.6)] p-4 text-left shadow-[0_0_0_4px_rgba(192,90,43,0.08)]"
-                          : "w-full cursor-pointer rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4 text-left"
-                      }
-                      href={`/payments?bookingId=${bookingId}`}
-                      key={bookingId}
-                    >
-                      <span className="block text-[0.9rem] text-[var(--text-muted)]">
-                        Pending booking
-                      </span>
-                      <strong className="block">{getBookingTitle(booking)}</strong>
-                      <p className="mt-1 text-sm text-[var(--text-muted)]">
-                        {getBookingTicketCount(booking)} ticket(s)
-                      </p>
-                    </Link>
-                  );
-                })
+                  {/* Summary Rows */}
+                  <div className="mt-2 space-y-3">
+                    <div className="flex justify-between px-2">
+                      <span className="text-[var(--text-muted)]">Unit Price (Average)</span>
+                      <span className="font-medium">LKR {(booking.totalAmount / booking.numberOfTickets).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between px-2">
+                      <span className="text-[var(--text-muted)]">Quantity</span>
+                      <span className="font-medium">x {booking.numberOfTickets}</span>
+                    </div>
+                    <div className="pt-3 border-t border-[rgba(54,45,32,0.1)] flex justify-between items-center px-2">
+                      <span className="text-lg font-bold">Total Due</span>
+                      <strong className="text-xl text-[var(--accent)]">
+                        LKR {booking.totalAmount.toLocaleString()}
+                      </strong>
+                    </div>
+                  </div>
+                </>
               ) : (
-                <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
-                  <p className="text-[var(--text-muted)]">
-                    You do not have any pending reservations to pay right now.
-                  </p>
-                  <Link
-                    className="mt-3 inline-flex rounded-full border border-[rgba(33,83,79,0.18)] bg-[rgba(33,83,79,0.1)] px-[1.1rem] py-[0.7rem] text-sm font-semibold text-[var(--secondary)]"
-                    href="/bookings"
-                  >
-                    Back to Bookings
-                  </Link>
+                <div className="p-8 text-center border-2 border-dashed border-[var(--border)] rounded-[20px]">
+                   <p className="text-[var(--text-muted)]">Please select a booking from your dashboard to proceed with payment.</p>
                 </div>
               )}
             </div>
-          </article>
 
-          <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
-            <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-              Saved Methods
-            </p>
-            <h3 className="mb-3 text-[1.05rem]">Wallet and cards</h3>
-            <div className="grid gap-4">
-              {paymentMethods.map((method) => (
-                <button
-                  className={
-                    method.label === selectedMethod
-                      ? "w-full cursor-pointer rounded-[20px] border border-[rgba(192,90,43,0.35)] bg-[rgba(255,255,255,0.6)] p-4 text-left shadow-[0_0_0_4px_rgba(192,90,43,0.08)]"
-                      : "w-full cursor-pointer rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4 text-left"
-                  }
-                  key={method.label}
-                  onClick={() => setSelectedMethod(method.label)}
-                  type="button"
-                >
-                  <span>{method.type}</span>
-                  <strong>{method.label}</strong>
-                </button>
-              ))}
+            <div className="mt-8">
+              <button
+                className="w-full cursor-pointer rounded-full bg-[var(--accent)] px-8 py-4 text-white font-bold shadow-lg hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={checkoutState === "processing" || !booking}
+                onClick={handleCheckout}
+              >
+                {checkoutState === "processing" ? "Redirecting to Stripe..." : `Pay LKR ${booking?.totalAmount.toLocaleString() || '0'} Now`}
+              </button>
             </div>
           </article>
-        </section>
 
-        <section className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
-          <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-            Transactions
-          </p>
-          <h3 className="mb-3 text-[1.05rem]">Recent payment activity</h3>
-          <div className="grid gap-4">
-            {paymentHistory.map((transaction) => (
-              <article
-                className="flex items-start gap-[0.9rem] rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.65)] p-4"
-                key={transaction.title}
-              >
-                <div>
-                  <h4 className="mb-2 text-[1.15rem]">{transaction.title}</h4>
-                  <p className="mb-0 text-[var(--text-muted)]">
-                    {transaction.date}
-                  </p>
-                </div>
-                <div className="ml-auto flex items-center gap-4">
-                  <strong>{transaction.amount}</strong>
-                  <span className="inline-flex items-center rounded-full bg-[rgba(33,83,79,0.12)] px-[0.8rem] py-[0.45rem] text-[0.82rem] font-bold text-[var(--secondary)]">
-                    {transaction.status}
-                  </span>
-                </div>
-              </article>
-            ))}
-          </div>
+          {/* Transactions Column (Unchanged) */}
+          <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
+            <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
+              Transactions
+            </p>
+            <h3 className="mb-6 text-[1.05rem]">Recent activity</h3>
+            <div className="grid gap-4">
+              {isLoadingRecentPayments ? (
+                <div className="h-20 rounded-[12px] bg-gray-100 animate-pulse" />
+              ) : recentPayments.length > 0 ? (
+                recentPayments.map((p) => (
+                  <article key={p._id || p.id} className="flex items-start gap-4 rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-white/60 p-4">
+                    <div className="flex-1">
+                      <h4 className="text-[1rem] font-semibold">{p.eventName || "Booking Payment"}</h4>
+                      <p className="text-xs text-[var(--text-muted)]">{new Date(p.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    <div className="text-right">
+                      <strong className="block text-sm">{p.currency || 'LKR'} {p.amount.toLocaleString()}</strong>
+                      <span className={`text-[0.7rem] uppercase font-bold ${p.status === 'SUCCESS' ? 'text-green-600' : 'text-orange-500'}`}>
+                        {p.status}
+                      </span>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <p className="text-sm text-[var(--text-muted)]">No transactions found.</p>
+              )}
+            </div>
+          </article>
         </section>
       </AppShell>
     </AuthGuard>
