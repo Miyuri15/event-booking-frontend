@@ -15,7 +15,7 @@
     "postcss": "^8.5.8",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "sweetalert2": "^11.26.23",
+    "sweetalert2": "^11.26.24",
     "tailwindcss": "^4.2.1"
   }
 }
