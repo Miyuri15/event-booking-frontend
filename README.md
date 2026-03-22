@@ -60,7 +60,7 @@ frontend/
 The frontend is configured to call the API gateway with:
 
 ```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8086
 ```
 
 ## Run
