@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { loginUser, registerUser } from "@/lib/api";
 import { saveAuth } from "@/lib/auth";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -82,6 +82,24 @@ function PasswordToggleButton({ isVisible, onClick }) {
 }
 
 export default function AuthPage() {
+  return (
+    <Suspense fallback={<AuthPageFallback />}>
+      <AuthPageContent />
+    </Suspense>
+  );
+}
+
+function AuthPageFallback() {
+  return (
+    <main className="mx-auto grid min-h-screen w-[min(1160px,calc(100%-2rem))] place-items-center pt-8 pb-12">
+      <div className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] px-6 py-5 shadow-[var(--shadow)]">
+        Loading authentication...
+      </div>
+    </main>
+  );
+}
+
+function AuthPageContent() {
   const router = useRouter();
   const [mode, setMode] = useState("login");
   const [registerForm, setRegisterForm] = useState(initialRegisterState);

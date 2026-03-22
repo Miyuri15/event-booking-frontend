@@ -2,7 +2,7 @@
 
 import AppShell from "@/components/AppShell";
 import AuthGuard from "@/components/AuthGuard";
-import { useMemo, useState, useEffect } from "react";
+import { Suspense, useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -73,6 +73,29 @@ const getBookingTicketCount = (booking) => {
 };
 
 export default function BookingsPage() {
+  return (
+    <Suspense fallback={<BookingsPageFallback />}>
+      <BookingsPageContent />
+    </Suspense>
+  );
+}
+
+function BookingsPageFallback() {
+  return (
+    <AuthGuard>
+      <AppShell
+        title="Bookings"
+        description="Manage reservations, preview the booking flow, and review the current state of your upcoming event purchases."
+      >
+        <section className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px]">
+          <p className="text-[var(--text-muted)]">Loading bookings...</p>
+        </section>
+      </AppShell>
+    </AuthGuard>
+  );
+}
+
+function BookingsPageContent() {
   const searchParams = useSearchParams();
   const [auth, setAuth] = useState(null);
   const [bookings, setBookings] = useState([]);
