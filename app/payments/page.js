@@ -38,7 +38,6 @@ function PaymentsPageFallback() {
 }
 
 function PaymentsPageContent() {
-  // 1. Stable Auth & Token Retrieval
   const auth = useMemo(() => (typeof window !== "undefined" ? getAuth() : null), []);
   const user = auth?.user || null;
   const token = auth?.token || null;
@@ -46,8 +45,6 @@ function PaymentsPageContent() {
   const searchParams = useSearchParams();
   const bookingIdFromQuery = searchParams?.get("bookingId");
 
-  const [selectedMethod, setSelectedMethod] = useState("Primary Card");
-  const [promoCode, setPromoCode] = useState("");
   const [checkoutState, setCheckoutState] = useState("idle");
   const [errorMessage, setErrorMessage] = useState("");
   
@@ -56,31 +53,23 @@ function PaymentsPageContent() {
   const [recentPayments, setRecentPayments] = useState([]);
   const [isLoadingRecentPayments, setIsLoadingRecentPayments] = useState(false);
 
-  // 2. Load Specific Booking (using stable token)
+  // 1. Load Specific Booking (Matching your provided JSON structure)
   useEffect(() => {
     const loadBooking = async () => {
       if (!bookingIdFromQuery || !token) return;
       setIsLoadingBooking(true);
       try {
         const data = await fetchBookingById(bookingIdFromQuery, token);
-        const raw = data || {};
-        const eventObj = raw.event || raw.eventDetails || {};
-        const numberOfTickets = raw.numberOfTickets || raw.ticketCount || raw.quantity || 1;
-        const ticketPrice = raw.ticketPrice || raw.price || eventObj.ticketPrice || eventObj.price || null;
-        const subtotal = raw.subtotal || raw.totalAmount || (ticketPrice ? ticketPrice * numberOfTickets : raw.totalAmount) || 0;
-        const serviceFee = raw.serviceFee || Math.round(subtotal * 0.1);
-        const totalAmount = raw.totalAmount || subtotal + serviceFee;
-
+        
+        // Map directly from your response object
         setBooking({
-          id: raw._id || raw.id,
-          eventName: raw.eventName || raw.title || eventObj.name || eventObj.title,
-          numberOfTickets,
-          ticketPrice,
-          subtotal,
-          serviceFee,
-          totalAmount,
-          venue: raw.venue || eventObj.venue,
-          eventDate: raw.eventDate || raw.date || eventObj.date || eventObj.eventDate,
+          id: data.id,
+          eventName: data.eventName,
+          eventDate: data.eventDate,
+          venue: data.venue,
+          numberOfTickets: data.numberOfTickets,
+          totalAmount: data.totalAmount, // Already includes all fees
+          paymentStatus: data.paymentStatus
         });
       } catch (err) {
         console.error("Failed to load booking:", err);
@@ -92,7 +81,7 @@ function PaymentsPageContent() {
     loadBooking();
   }, [bookingIdFromQuery, token]);
 
-  // 3. Load Recent Payments (using stable token)
+  // 2. Load Recent Payments
   useEffect(() => {
     const loadRecent = async () => {
       if (!token) return;
@@ -110,14 +99,6 @@ function PaymentsPageContent() {
     loadRecent();
   }, [token]);
 
-  const bookingPricing = useMemo(() => {
-    if (!booking) return null;
-    const subtotal = Number(booking.subtotal ?? booking.totalAmount ?? 0) || 0;
-    const serviceFee = Number(booking.serviceFee ?? Math.round(subtotal * 0.1)) || 0;
-    const total = Number(booking.totalAmount ?? subtotal + serviceFee) || subtotal + serviceFee;
-    return { subtotal, serviceFee, total };
-  }, [booking]);
-
   const handleCheckout = async () => {
     setErrorMessage("");
     setCheckoutState("processing");
@@ -132,19 +113,22 @@ function PaymentsPageContent() {
       if (booking?.id) {
         allBookingIds = booking.id;
         items = [{
-          menuItemName: booking.eventName || "Event Ticket",
-          quantity: booking.numberOfTickets || 1,
-          price: bookingPricing.subtotal / (booking.numberOfTickets || 1),
+          menuItemName: booking.eventName,
+          quantity: booking.numberOfTickets,
+          // Since totalAmount is inclusive, we divide by quantity for Stripe line items
+          price: booking.totalAmount / booking.numberOfTickets,
         }];
       } else {
+        // Fallback for checkout-all logic
         const bookingsData = await fetchPendingBookings(userId, token);
         const tickets = Array.isArray(bookingsData) ? bookingsData : bookingsData.data || [];
         if (!tickets.length) throw new Error("No pending bookings found.");
+        
         allBookingIds = tickets.map((t) => t.id).join(",");
         items = tickets.map((ticket) => ({
-          menuItemName: ticket.eventName || "Event Ticket",
-          quantity: ticket.numberOfTickets || 1,
-          price: ticket.totalAmount / (ticket.numberOfTickets || 1),
+          menuItemName: ticket.eventName,
+          quantity: ticket.numberOfTickets,
+          price: ticket.totalAmount / ticket.numberOfTickets,
         }));
       }
 
@@ -154,12 +138,6 @@ function PaymentsPageContent() {
       setCheckoutState("error");
       setErrorMessage(error.message);
     }
-  };
-
-  const resetCheckout = () => {
-    setCheckoutState("idle");
-    setErrorMessage("");
-    setPromoCode("");
   };
 
   return (
@@ -180,77 +158,80 @@ function PaymentsPageContent() {
             <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
               Checkout Preview
             </p>
-            <h3 className="mb-3 text-[1.05rem]">Confirm your selection</h3>
+            <h3 className="mb-6 text-[1.05rem]">Confirm your selection</h3>
             
-            {booking && (
-              <div className="mb-3 rounded-[12px] border border-[rgba(54,45,32,0.06)] bg-[rgba(255,255,255,0.6)] p-3">
-                <strong className="block">{booking.eventName}</strong>
-                <div className="text-sm text-[var(--text-muted)]">
-                  {booking.venue} • {new Date(booking.eventDate).toLocaleDateString()}
-                </div>
-              </div>
-            )}
-
             <div className="grid gap-4">
               {isLoadingBooking ? (
-                <div className="h-32 rounded-[12px] bg-gray-100 animate-pulse" />
-              ) : bookingPricing ? (
+                <div className="h-48 rounded-[20px] bg-gray-100 animate-pulse" />
+              ) : booking ? (
                 <>
-                  <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4 flex justify-between">
-                    <span>Subtotal</span>
-                    <strong>LKR {bookingPricing.subtotal.toLocaleString()}</strong>
+                  {/* Event Details Card */}
+                  <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-white/60 p-5 shadow-sm">
+                    <h4 className="text-lg font-bold text-[var(--text-main)] mb-1">{booking.eventName}</h4>
+                    <div className="space-y-1 text-sm text-[var(--text-muted)]">
+                      <p>📍 {booking.venue}</p>
+                      <p>📅 {new Date(booking.eventDate).toLocaleDateString(undefined, { dateStyle: 'full' })}</p>
+                      <p>🎟️ {booking.numberOfTickets} Ticket(s)</p>
+                    </div>
                   </div>
-                  <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4 flex justify-between">
-                    <span>Service Fee</span>
-                    <strong>LKR {bookingPricing.serviceFee.toLocaleString()}</strong>
-                  </div>
-                  <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4 flex justify-between">
-                    <span>Total Due</span>
-                    <strong>LKR {bookingPricing.total.toLocaleString()}</strong>
+
+                  {/* Summary Rows */}
+                  <div className="mt-2 space-y-3">
+                    <div className="flex justify-between px-2">
+                      <span className="text-[var(--text-muted)]">Unit Price (Average)</span>
+                      <span className="font-medium">LKR {(booking.totalAmount / booking.numberOfTickets).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between px-2">
+                      <span className="text-[var(--text-muted)]">Quantity</span>
+                      <span className="font-medium">x {booking.numberOfTickets}</span>
+                    </div>
+                    <div className="pt-3 border-t border-[rgba(54,45,32,0.1)] flex justify-between items-center px-2">
+                      <span className="text-lg font-bold">Total Due</span>
+                      <strong className="text-xl text-[var(--accent)]">
+                        LKR {booking.totalAmount.toLocaleString()}
+                      </strong>
+                    </div>
                   </div>
                 </>
               ) : (
-                <p className="text-sm text-[var(--text-muted)]">No active booking selected.</p>
+                <div className="p-8 text-center border-2 border-dashed border-[var(--border)] rounded-[20px]">
+                   <p className="text-[var(--text-muted)]">Please select a booking from your dashboard to proceed with payment.</p>
+                </div>
               )}
             </div>
 
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-8">
               <button
-                className="cursor-pointer rounded-full bg-[var(--accent)] px-[1.35rem] py-[0.95rem] text-white shadow-lg disabled:opacity-50"
-                disabled={checkoutState === "processing" || !bookingIdFromQuery}
+                className="w-full cursor-pointer rounded-full bg-[var(--accent)] px-8 py-4 text-white font-bold shadow-lg hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={checkoutState === "processing" || !booking}
                 onClick={handleCheckout}
               >
-                {checkoutState === "processing" ? "Processing..." : "Pay Now"}
+                {checkoutState === "processing" ? "Redirecting to Stripe..." : `Pay LKR ${booking?.totalAmount.toLocaleString() || '0'} Now`}
               </button>
-              {/* <button
-                className="cursor-pointer rounded-full border border-[var(--border)] px-[1.35rem] py-[0.95rem] disabled:opacity-50"
-                onClick={resetCheckout}
-                disabled={checkoutState === "processing"}
-              >
-                Reset
-              </button> */}
             </div>
           </article>
 
-          {/* Transactions Column */}
+          {/* Transactions Column (Unchanged) */}
           <article className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
             <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
               Transactions
             </p>
-            <h3 className="mb-3 text-[1.05rem]">Recent activity</h3>
+            <h3 className="mb-6 text-[1.05rem]">Recent activity</h3>
             <div className="grid gap-4">
               {isLoadingRecentPayments ? (
                 <div className="h-20 rounded-[12px] bg-gray-100 animate-pulse" />
               ) : recentPayments.length > 0 ? (
                 recentPayments.map((p) => (
-                  <article key={p._id} className="flex items-start gap-4 rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-white/60 p-4">
+                  <article key={p._id || p.id} className="flex items-start gap-4 rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-white/60 p-4">
                     <div className="flex-1">
                       <h4 className="text-[1rem] font-semibold">{p.eventName || "Booking Payment"}</h4>
-                      <p className="text-xs text-[var(--text-muted)]">{new Date(p.createdAt).toLocaleString()}</p>
+                      <p className="text-xs text-[var(--text-muted)]">{new Date(p.createdAt).toLocaleDateString()}</p>
                     </div>
                     <div className="text-right">
-                      <strong className="block text-sm">{p.currency} {p.amount.toLocaleString()}</strong>
-                      <span className="text-[0.7rem] uppercase font-bold text-green-600">{p.status}</span>
+                      <strong className="block text-sm">{p.currency || 'LKR'} {p.amount.toLocaleString()}</strong>
+                      <span className={`text-[0.7rem] uppercase font-bold ${p.status === 'SUCCESS' ? 'text-green-600' : 'text-orange-500'}`}>
+                        {p.status}
+                      </span>
                     </div>
                   </article>
                 ))
