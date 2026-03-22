@@ -46,7 +46,7 @@ function AdminBookingsContent() {
   const [auth, setAuth] = useState(null);
   const [filters, setFilters] = useState({
     status: "",
-    userId: "",
+    userName: "",
     eventId: "",
     sortBy: "createdAt",
     sortOrder: "desc",
@@ -190,14 +190,14 @@ function AdminBookingsContent() {
 
           <div>
             <label className="mb-1 block text-sm font-medium text-[var(--text-muted)]">
-              User ID
+              User Name
             </label>
             <input
               type="text"
-              name="userId"
-              value={filters.userId}
+              name="userName"
+              value={filters.userName}
               onChange={handleFilterChange}
-              placeholder="Filter by User ID"
+              placeholder="Filter by User Name"
               className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
             />
           </div>
@@ -228,6 +228,8 @@ function AdminBookingsContent() {
             >
               <option value="createdAt">Created Date</option>
               <option value="eventDate">Event Date</option>
+              <option value="totalAmount">Total Amount</option>
+              <option value="numberOfTickets">Ticket Count</option>
             </select>
           </div>
 
@@ -273,7 +275,7 @@ function AdminBookingsContent() {
           <div className="mb-4 text-4xl">🎫</div>
           <h3 className="mb-2 text-lg font-bold">No bookings found</h3>
           <p className="text-[var(--text-muted)]">
-            {filters.status || filters.userId || filters.eventId
+            {filters.status || filters.userName || filters.eventId
               ? "Try adjusting your filters"
               : "Wait for customers to make reservations."}
           </p>
