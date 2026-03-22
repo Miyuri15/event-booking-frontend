@@ -100,7 +100,7 @@ function BookingsPageContent() {
   const [auth, setAuth] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState(null);
-  const [ticketCount, setTicketCount] = useState(2);
+  const [ticketCount, setTicketCount] = useState(1);
   const [step, setStep] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [confirmationMessage, setConfirmationMessage] = useState("");
@@ -154,7 +154,8 @@ function BookingsPageContent() {
         if (response?.data) {
           const availableEvents = response.data.filter(
             (event) =>
-              event.status === "Active" && Number(event.availableSeats || 0) > 0,
+              event.status === "Active" &&
+              Number(event.availableSeats || 0) > 0,
           );
           setBookableEvents(availableEvents);
           if (availableEvents.length > 0) {
@@ -162,9 +163,7 @@ function BookingsPageContent() {
             const preselectedEvent = requestedEventId
               ? availableEvents.find((event) => event._id === requestedEventId)
               : null;
-            setSelectedEventId(
-              preselectedEvent?._id || availableEvents[0]._id,
-            );
+            setSelectedEventId(preselectedEvent?._id || availableEvents[0]._id);
           }
         }
       } catch (error) {
@@ -411,9 +410,7 @@ function BookingsPageContent() {
                         ? formatDate(getBookingDate(booking))
                         : "Date TBD"}
                     </span>
-                    <strong>
-                      {getBookingTicketCount(booking)} ticket(s)
-                    </strong>
+                    <strong>{getBookingTicketCount(booking)} ticket(s)</strong>
                     <span className="inline-flex items-center rounded-full bg-[rgba(33,83,79,0.12)] px-[0.8rem] py-[0.45rem] text-[0.82rem] font-bold text-[var(--secondary)]">
                       {getBookingStatus(booking)}
                     </span>
@@ -429,9 +426,17 @@ function BookingsPageContent() {
                 </article>
               ))
             ) : (
-              <p className="text-[var(--text-muted)] py-4">
-                No bookings found.
-              </p>
+              <div className="flex flex-col items-center justify-center p-8 border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.65)] rounded-[20px] text-center">
+                <p className="text-[var(--text-muted)] mb-4">
+                  You haven't made any bookings yet.
+                </p>
+                <Link
+                  href="/explore"
+                  className="text-[var(--accent)] font-bold hover:underline"
+                >
+                  Explore Events
+                </Link>
+              </div>
             )}
           </div>
         </section>
@@ -566,7 +571,9 @@ function BookingsPageContent() {
             <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
               Booking Issue
             </p>
-            <h3 className="mb-3 text-[1.05rem]">Booking could not be completed</h3>
+            <h3 className="mb-3 text-[1.05rem]">
+              Booking could not be completed
+            </h3>
             <p className="leading-[1.7] text-[var(--text-muted)]">
               {bookingError}
             </p>
