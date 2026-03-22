@@ -57,7 +57,10 @@ const fallbackNotifications = [
 ];
 
 const PREVIEW_NOTIFICATION_COUNT = 3;
-const HIDDEN_NOTIFICATION_TYPES = new Set(["LOGIN_ALERT"]);
+const HIDDEN_NOTIFICATION_TYPES = new Set([
+  "LOGIN_ALERT",
+  "PAYMENT_CHECKOUT_CREATED",
+]);
 
 function formatTypeLabel(type) {
   return type.replaceAll("_", " ");
