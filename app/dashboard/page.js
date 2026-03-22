@@ -3,10 +3,12 @@
 import AppShell from "@/components/AppShell";
 import AuthGuard from "@/components/AuthGuard";
 import {
+  cancelBooking,
   createAdminUser,
   deleteAdminUser,
   fetchAdminUsers,
   fetchEvents,
+  fetchMyBookings,
   updateAdminUser,
 } from "@/lib/api";
 import { getAuth, isAdmin } from "@/lib/auth";
@@ -34,6 +36,7 @@ function UserDashboard({ auth }) {
   const [featuredEvents, setFeaturedEvents] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [recentBookings, setRecentBookings] = useState([]);
+  const [upcomingReservations, setUpcomingReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [selectedEventForBooking, setSelectedEventForBooking] = useState(null);
@@ -42,35 +45,82 @@ function UserDashboard({ auth }) {
     title: "",
     description: "",
   });
+  const [cancelModal, setCancelModal] = useState({
+    isOpen: false,
+    bookingId: null,
+  });
+  const [refreshKey, setRefreshKey] = useState(0);
   const [stats, setStats] = useState({
     totalEvents: 0,
     upcomingEvents: 0,
     availableSeats: 0,
+    totalBookings: 0,
+    activeReservations: 0,
   });
 
+  function getBookingStatusClasses(status) {
+    switch (status) {
+      case "CONFIRMED":
+        return "px-2 py-1 text-xs font-bold rounded-full bg-green-100 text-green-800";
+      case "PENDING":
+        return "px-2 py-1 text-xs font-bold rounded-full bg-yellow-100 text-yellow-800";
+      case "CANCELLED":
+        return "px-2 py-1 text-xs font-bold rounded-full bg-red-100 text-red-800";
+      default:
+        return "px-2 py-1 text-xs font-bold rounded-full bg-gray-100 text-gray-800";
+    }
+  }
+
   useEffect(() => {
-    const loadUserEvents = async () => {
+    const loadData = async () => {
       if (!auth?.token) return;
 
       try {
-        // Fetch all active events
+        // Fetch bookings
+        const bookingsResponse = await fetchMyBookings(auth.token, {
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        });
+        const allBookings = Array.isArray(bookingsResponse)
+          ? bookingsResponse
+          : bookingsResponse?.data || [];
+
+        const recent = allBookings.slice(0, 3);
+
+        // Filter and sort for "Upcoming Reservations"
+        const now = new Date();
+        const upcomingRes = allBookings
+          .filter((booking) => {
+            const date = booking.eventDate || booking.date;
+            return (
+              (booking.status === "CONFIRMED" ||
+                booking.status === "PENDING") &&
+              new Date(date) > now
+            );
+          })
+          .sort((a, b) => {
+            const dateA = a.eventDate || a.date;
+            const dateB = b.eventDate || b.date;
+            return new Date(dateA) - new Date(dateB);
+          });
+
+        const nextReservations = upcomingRes.slice(0, 3);
+
+        // Calculate booking stats
+        const bookingCount = allBookings.length;
+        const activeResCount = upcomingRes.length;
+
+        setRecentBookings(recent);
+        setUpcomingReservations(nextReservations);
+
+        // Fetch events
         const allEventsResponse = await fetchEvents(
-          {
-            status: "Active",
-            limit: 100,
-          },
+          { status: "Active", limit: 100 },
           auth.token,
         );
-
         const allEvents = allEventsResponse?.data || allEventsResponse || [];
-
-        // Get featured events (first 3)
         const featured = allEvents.slice(0, 3);
-
-        // Get upcoming events (next 5)
         const upcoming = allEvents.slice(3, 8);
-
-        // Calculate total available seats
         const totalSeats = allEvents.reduce(
           (sum, event) => sum + event.availableSeats,
           0,
@@ -78,21 +128,48 @@ function UserDashboard({ auth }) {
 
         setFeaturedEvents(featured);
         setUpcomingEvents(upcoming);
-
         setStats({
           totalEvents: allEvents.length,
           upcomingEvents: upcoming.length,
           availableSeats: totalSeats,
+          totalBookings: bookingCount,
+          activeReservations: activeResCount,
         });
       } catch (error) {
-        console.error("Failed to load events:", error);
+        console.error("Failed to load dashboard data:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadUserEvents();
-  }, [auth]);
+    loadData();
+  }, [auth, refreshKey]);
+
+  const handleCancelBooking = (bookingId) => {
+    setCancelModal({ isOpen: true, bookingId });
+  };
+
+  const confirmCancel = async () => {
+    if (!cancelModal.bookingId) return;
+    try {
+      await cancelBooking(cancelModal.bookingId, auth.token);
+      setRefreshKey((prev) => prev + 1);
+      setCancelModal({ isOpen: false, bookingId: null });
+      setBookingFeedback({
+        isOpen: true,
+        title: "Booking Cancelled",
+        description: "Your reservation has been successfully cancelled.",
+      });
+    } catch (error) {
+      console.error("Failed to cancel booking:", error);
+      setCancelModal({ isOpen: false, bookingId: null });
+      setBookingFeedback({
+        isOpen: true,
+        title: "Cancellation Failed",
+        description: "Unable to cancel this booking. Please try again later.",
+      });
+    }
+  };
 
   const handleBookNow = (event) => {
     setSelectedEventForBooking(event);
@@ -146,7 +223,7 @@ function UserDashboard({ auth }) {
             your account details ready for faster checkout.
           </p>
 
-          <div className="mt-6 grid grid-cols-2 gap-4">
+          <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="rounded-[20px] bg-gradient-to-br from-orange-50 to-amber-50 p-4 text-center transition-transform hover:scale-105">
               <strong className="mb-1 block text-3xl font-bold text-[var(--accent)]">
                 {stats.totalEvents}
@@ -160,16 +237,196 @@ function UserDashboard({ auth }) {
                 {stats.upcomingEvents}
               </strong>
               <span className="text-sm text-[var(--text-muted)]">
-                Upcoming this week
+                New this week
+              </span>
+            </div>
+            <div className="rounded-[20px] bg-gradient-to-br from-green-50 to-emerald-50 p-4 text-center transition-transform hover:scale-105">
+              <strong className="mb-1 block text-3xl font-bold text-green-600">
+                {stats.totalBookings}
+              </strong>
+              <span className="text-sm text-[var(--text-muted)]">
+                Total Bookings
+              </span>
+            </div>
+            <div className="rounded-[20px] bg-gradient-to-br from-purple-50 to-violet-50 p-4 text-center transition-transform hover:scale-105">
+              <strong className="mb-1 block text-3xl font-bold text-purple-600">
+                {stats.activeReservations}
+              </strong>
+              <span className="text-sm text-[var(--text-muted)]">
+                Active Reservations
               </span>
             </div>
           </div>
         </article>
 
-        {/* Upcoming Events */}
+        {/* Upcoming Reservations */}
         <article className="rounded-[28px] border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] to-white p-8 shadow-lg">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <p className="mb-1 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-green-600">
+                📅 Upcoming
+              </p>
+              <h3 className="text-[1.2rem] font-semibold">
+                Your Next Experiences
+              </h3>
+            </div>
+            <Link
+              href="/bookings"
+              className="text-sm font-medium text-[var(--accent)] hover:underline"
+            >
+              View All
+            </Link>
+          </div>
+
+          <div className="space-y-3 max-h-[400px] overflow-y-auto">
+            {upcomingReservations.length > 0 ? (
+              upcomingReservations.map((booking) => (
+                <div
+                  key={booking.id || booking._id}
+                  className="flex flex-col gap-3 rounded-[20px] border border-green-500 bg-green-50 p-4 transition-all hover:shadow-md"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <strong className="block text-[1rem]">
+                        {booking.event?.name || booking.eventName || "Event"}
+                      </strong>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {new Date(
+                          booking.eventDate || booking.date,
+                        ).toLocaleString()}
+                      </p>
+                    </div>
+
+                    <span className={getBookingStatusClasses(booking.status)}>
+                      {booking.status}
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2 justify-end">
+                    <Link
+                      href={`/bookings?id=${booking.id || booking._id}`}
+                      className="px-3 py-1 text-xs font-medium text-gray-600 hover:text-gray-900 bg-white hover:bg-gray-100 rounded-full transition-colors"
+                    >
+                      View
+                    </Link>
+
+                    {booking.status === "PENDING" && (
+                      <Link
+                        href={`/payments?bookingId=${booking.id || booking._id}`}
+                        className="px-3 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-full transition-colors"
+                      >
+                        Pay
+                      </Link>
+                    )}
+
+                    {(booking.status === "PENDING" ||
+                      booking.status === "CONFIRMED") && (
+                      <button
+                        onClick={() =>
+                          handleCancelBooking(booking.id || booking._id)
+                        }
+                        className="px-3 py-1 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-full transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-[var(--text-muted)] py-8">
+                No upcoming reservations
+              </p>
+            )}
+          </div>
+        </article>
+
+        {/* Recent Bookings */}
+        <article className="rounded-[28px] border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] to-white p-8 shadow-lg">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <p className="mb-1 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
+                🎫 History
+              </p>
+              <h3 className="text-[1.2rem] font-semibold">Recent Bookings</h3>
+            </div>
+            <Link
+              href="/bookings"
+              className="text-sm font-medium text-[var(--accent)] hover:underline"
+            >
+              View All
+            </Link>
+          </div>
+
+          <div className="space-y-3 max-h-[400px] overflow-y-auto">
+            {recentBookings.length > 0 ? (
+              recentBookings.map((booking) => (
+                <div
+                  key={booking.id || booking._id}
+                  className="flex flex-col gap-3 rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-white p-4 transition-all hover:shadow-md"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <strong className="block text-[1rem]">
+                        {booking.event?.name || booking.eventName || "Event"}
+                      </strong>
+                      <p className="text-sm text-[var(--text-muted)] mt-1">
+                        {booking.eventDate || booking.date
+                          ? new Date(
+                              booking.eventDate || booking.date,
+                            ).toLocaleDateString()
+                          : "Date TBD"}
+                      </p>
+                    </div>
+
+                    <span className={getBookingStatusClasses(booking.status)}>
+                      {booking.status}
+                    </span>
+                  </div>
+
+                  <div className="border-t border-gray-100 pt-3 flex gap-2 justify-end">
+                    <Link
+                      href={`/bookings?id=${booking.id || booking._id}`}
+                      className="px-3 py-1 text-xs font-medium text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 rounded-full transition-colors"
+                    >
+                      View
+                    </Link>
+
+                    {booking.status === "PENDING" && (
+                      <Link
+                        href={`/payments?bookingId=${booking.id || booking._id}`}
+                        className="px-3 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-full transition-colors"
+                      >
+                        Pay
+                      </Link>
+                    )}
+
+                    {(booking.status === "PENDING" ||
+                      booking.status === "CONFIRMED") && (
+                      <button
+                        onClick={() =>
+                          handleCancelBooking(booking.id || booking._id)
+                        }
+                        className="px-3 py-1 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-full transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-[var(--text-muted)] py-8">
+                No recent bookings
+              </p>
+            )}
+          </div>
+        </article>
+
+        {/* Upcoming Events (Moved down) */}
+        <article className="rounded-[28px] border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] to-white p-8 shadow-lg col-span-2 md:col-span-1">
           <p className="mb-3 text-[0.78rem] font-bold uppercase tracking-[0.18em] text-[var(--accent-dark)]">
-            📅 Coming Up
+            📅 Discover
           </p>
           <h3 className="mb-4 text-[1.2rem] font-semibold">
             Your event rhythm this week
@@ -362,6 +619,15 @@ function UserDashboard({ auth }) {
             description: "",
           })
         }
+      />
+      <ConfirmationModal
+        isOpen={cancelModal.isOpen}
+        title="Cancel Booking"
+        description="Are you sure you want to cancel this booking? This action cannot be undone."
+        confirmLabel="Yes, Cancel"
+        cancelLabel="No, Keep it"
+        onConfirm={confirmCancel}
+        onCancel={() => setCancelModal({ isOpen: false, bookingId: null })}
       />
     </AppShell>
   );

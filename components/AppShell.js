@@ -95,13 +95,15 @@ export default function AppShell({ title, description, children }) {
     router.push("/auth");
   };
 
+  // Create navigation items based on user role
   const isUserAdmin = auth ? isAdmin(auth) : false;
 
-  // Create navigation items based on user role
   const getNavigationItems = () => {
+    let items = navigationItems;
+
     if (isUserAdmin) {
       // For admin, replace the Events link to point to admin page
-      return navigationItems.map((item) => {
+      items = items.map((item) => {
         if (item.href === "/explore") {
           return {
             ...item,
@@ -110,10 +112,18 @@ export default function AppShell({ title, description, children }) {
             caption: "Create, edit, and manage events",
           };
         }
+        if (item.href === "/bookings") {
+          return {
+            ...item,
+            href: "/admin/bookings",
+            label: "Bookings",
+            caption: "Manage customer reservations",
+          };
+        }
         return item;
       });
     }
-    return navigationItems;
+    return items;
   };
 
   const currentNavigationItems = getNavigationItems();
