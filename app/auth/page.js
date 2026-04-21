@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { loginUser, registerUser } from "@/lib/api";
 import { saveAuth } from "@/lib/auth";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const initialRegisterState = {
@@ -193,6 +194,30 @@ function AuthPageContent() {
       </section>
 
       <section className="self-center rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow)] backdrop-blur-[14px] max-[900px]:p-[1.4rem]">
+        {/* --- Top Navigation --- */}
+        <div className="relative mb-8">
+          <Link
+            href="/"
+            className="group inline-flex items-center gap-2 rounded-full border border-[rgba(54,45,32,0.16)] bg-white px-5 py-2.5 text-sm font-semibold text-[var(--text-main)] transition-all duration-200 hover:shadow-md"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4 transition-transform group-hover:-translate-x-1"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              />
+            </svg>
+            <span>Go to Home</span>
+          </Link>
+        </div>
+
         <div className="mb-5 flex flex-wrap gap-3">
           <button
             className={
