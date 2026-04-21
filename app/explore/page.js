@@ -562,7 +562,10 @@ export default function ExplorePage() {
         <BookingModal
           isOpen={isBookingModalOpen}
           onClose={() => setIsBookingModalOpen(false)}
-          preselectedEventId={selectedEventForBooking?._id}
+          preselectedEventId={
+            selectedEventForBooking?._id || selectedEventForBooking?.id
+          }
+          preselectedEvent={selectedEventForBooking}
           onBookingSuccess={handleBookingSuccess}
         />
         <ConfirmationModal

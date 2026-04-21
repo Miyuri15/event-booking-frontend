@@ -15,30 +15,45 @@ const reservationSteps = [
   "Final review and confirm booking",
 ];
 
+function getEventId(event) {
+  return event?._id || event?.id || null;
+}
+
+function normalizeId(value) {
+  return value == null ? null : String(value);
+}
+
 export default function BookingModal({
   isOpen,
   onClose,
   preselectedEventId,
-  preselectedEvent, // Add this to receive the full event object
+  preselectedEvent,
   onBookingSuccess,
 }) {
   const [auth, setAuth] = useState(null);
   const [step, setStep] = useState(1);
-  const [selectedEventId, setSelectedEventId] = useState(
-    preselectedEventId || null,
-  );
+  const [selectedEventId, setSelectedEventId] = useState(null);
   const [ticketCount, setTicketCount] = useState(2);
   const [bookableEvents, setBookableEvents] = useState([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [isPlacingBooking, setIsPlacingBooking] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Track if we have a preselected event from the parent
-  const hasPreselectedEvent = !!preselectedEventId;
+  const normalizedPreselectedId = normalizeId(
+    preselectedEventId || getEventId(preselectedEvent),
+  );
+  const hasPreselectedEvent = !!normalizedPreselectedId || !!preselectedEvent;
 
   useEffect(() => {
     setAuth(getAuth());
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setSelectedEventId(normalizedPreselectedId);
+    setStep(hasPreselectedEvent ? 2 : 1);
+  }, [isOpen, normalizedPreselectedId, hasPreselectedEvent]);
 
   useEffect(() => {
     if (!auth?.token || !isOpen) return;
@@ -46,8 +61,6 @@ export default function BookingModal({
     const fetchEventData = async () => {
       setIsLoadingEvents(true);
       try {
-        // If we have a preselected event, we still need to fetch all events
-        // but we'll filter to only show the selected one
         const response = await fetchEventsForBookingPage(auth.token, {
           sortBy: "createdAt",
           sortOrder: "desc",
@@ -56,27 +69,25 @@ export default function BookingModal({
         if (response?.data) {
           const availableEvents = response.data.filter(
             (event) =>
-              event.status === "Active" && Number(event.availableSeats || 0) > 0,
+              event.status === "Active" &&
+              Number(event.availableSeats || 0) > 0,
           );
           setBookableEvents(availableEvents);
 
-          // If we have a preselected event, set it
-          if (preselectedEventId) {
-            const preselectedEvent = availableEvents.find(
-              (event) => event._id === preselectedEventId,
+          if (normalizedPreselectedId) {
+            const matched = availableEvents.find(
+              (event) =>
+                normalizeId(getEventId(event)) === normalizedPreselectedId,
             );
-            if (preselectedEvent) {
-              setSelectedEventId(preselectedEventId);
-              // If there's a preselected event, automatically go to step 2
-              // but we need to wait for the data to load first
-              setTimeout(() => {
-                setStep(2);
-              }, 100);
-            } else if (availableEvents.length > 0) {
-              setSelectedEventId(availableEvents[0]._id);
+
+            if (matched) {
+              setSelectedEventId(normalizedPreselectedId);
             }
-          } else if (availableEvents.length > 0 && !selectedEventId) {
-            setSelectedEventId(availableEvents[0]._id);
+          } else if (availableEvents.length > 0) {
+            setSelectedEventId((current) => {
+              if (current) return current;
+              return normalizeId(getEventId(availableEvents[0]));
+            });
           }
         }
       } catch (error) {
@@ -87,21 +98,30 @@ export default function BookingModal({
     };
 
     fetchEventData();
-  }, [auth, isOpen, preselectedEventId]);
+  }, [auth, isOpen, normalizedPreselectedId]);
 
-  // Reset modal state when closed
   useEffect(() => {
     if (!isOpen) {
-      setStep(hasPreselectedEvent ? 2 : 1); // Reset to appropriate step
       setTicketCount(2);
       setErrorMessage("");
     }
   }, [isOpen, hasPreselectedEvent]);
 
-  const selectedEvent = useMemo(
-    () => bookableEvents.find((event) => event._id === selectedEventId) || null,
-    [selectedEventId, bookableEvents],
-  );
+  const selectedEvent = useMemo(() => {
+    const matchedEvent = bookableEvents.find(
+      (event) => normalizeId(getEventId(event)) === selectedEventId,
+    );
+
+    if (matchedEvent) {
+      return matchedEvent;
+    }
+
+    if (hasPreselectedEvent && preselectedEvent) {
+      return preselectedEvent;
+    }
+
+    return null;
+  }, [selectedEventId, bookableEvents, hasPreselectedEvent, preselectedEvent]);
 
   const subtotal = selectedEvent?.ticketPrice
     ? selectedEvent.ticketPrice * ticketCount
@@ -122,8 +142,13 @@ export default function BookingModal({
 
     setIsPlacingBooking(true);
     try {
+      const bookingEventId = getEventId(selectedEvent);
+      if (!bookingEventId) {
+        throw new Error("Event ID is not available for booking.");
+      }
+
       await bookEvent(
-        selectedEvent._id,
+        bookingEventId,
         { numberOfTickets: ticketCount },
         auth.token,
       );
@@ -193,7 +218,6 @@ export default function BookingModal({
           </div>
         )}
 
-        {/* Show selected event info when preselected */}
         {hasPreselectedEvent && selectedEvent && (
           <div className="mb-6 rounded-[20px] border border-[rgba(192,90,43,0.35)] bg-[rgba(255,255,255,0.82)] p-4">
             <h4 className="mb-2 text-[1.15rem] font-semibold">
@@ -238,13 +262,19 @@ export default function BookingModal({
             />
           ))}
 
-        {step === 2 && (
+        {step === 2 && selectedEvent && (
           <TicketSelection
             step={step}
             ticketCount={ticketCount}
             setTicketCount={setTicketCount}
             selectedEvent={selectedEvent}
           />
+        )}
+
+        {step === 2 && !selectedEvent && (
+          <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.75)] p-4 text-[var(--text-muted)]">
+            Loading event details...
+          </div>
         )}
 
         {step === 3 && (
@@ -276,6 +306,7 @@ export default function BookingModal({
                 (!hasPreselectedEvent &&
                   step === 1 &&
                   (!selectedEventId || isLoadingEvents)) ||
+                (step === 2 && !selectedEvent) ||
                 isPlacingBooking
               }
               type="button"

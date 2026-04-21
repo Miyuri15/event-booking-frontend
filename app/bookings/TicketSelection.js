@@ -7,6 +7,8 @@ const TicketSelection = ({
   setTicketCount,
   selectedEvent,
 }) => {
+  const ticketPrice = Number(selectedEvent?.ticketPrice || 0);
+
   return (
     step === 2 && (
       <div className="grid gap-4">
@@ -27,7 +29,7 @@ const TicketSelection = ({
         <div className="grid gap-4">
           <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
             <span>Ticket Price </span>
-            <strong>LKR {selectedEvent.ticketPrice}</strong>
+            <strong>LKR {ticketPrice}</strong>
           </div>
           <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
             <span>Seats </span>
@@ -35,7 +37,7 @@ const TicketSelection = ({
           </div>
           <div className="rounded-[20px] border border-[rgba(54,45,32,0.08)] bg-[rgba(255,255,255,0.6)] p-4">
             <span>Total Amount </span>
-            <strong>LKR {selectedEvent.ticketPrice * ticketCount}</strong>
+            <strong>LKR {ticketPrice * ticketCount}</strong>
           </div>
         </div>
       </div>
