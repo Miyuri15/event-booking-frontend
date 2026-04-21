@@ -172,7 +172,7 @@ function AuthPageContent() {
             Event Booking Platform
           </p>
           <h1 className="mb-4 text-[clamp(2.4rem,5vw,4.6rem)] leading-[0.95] text-[#f5efe4]">
-            Sign in and start planning your next experience
+            Sign out and start planning your next experience
           </h1>
           <p className="leading-[1.7] text-[#f5efe4]">
             Create an account to unlock event discovery, upcoming tickets, saved
